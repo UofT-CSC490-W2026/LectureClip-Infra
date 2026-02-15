@@ -1,25 +1,67 @@
 ---
-fail_fast: true
+fail_fast: false  # Continue running hooks even if one fails
 minimum_pre_commit_version: "2.6.0"
+
 repos:
-###### PLACEHOLDER FOR TERRAFORM LINTING ######
+  # ============================================================================
+  # TERRAFORM LINTING
+  # ============================================================================
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.96.1
+    hooks:
+      # Format Terraform files
+      - id: terraform_fmt
+        name: Terraform Format
+        description: Rewrites Terraform files to canonical format
 
-###############################################
+      # Validate Terraform files
+      - id: terraform_validate
+        name: Terraform Validate
+        description: Validates Terraform configuration files
 
-###### PLACEHOLDER FOR CFN LINTING       ######
+      # Lint Terraform files with tflint
+      - id: terraform_tflint
+        name: Terraform Lint
+        description: Lints Terraform code with tflint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.config/tf-lint/.tflint.hcl
 
-###############################################
+  # ============================================================================
+  # GENERAL CODE QUALITY
+  # ============================================================================
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # Remove trailing whitespace
+      - id: trailing-whitespace
+        name: Trim Trailing Whitespace
 
-###### PLACEHOLDER FOR CHECKOV CHECKS    ######
+      # Ensure files end with newline
+      - id: end-of-file-fixer
+        name: Fix End of Files
 
-###############################################
+      # Check YAML syntax
+      - id: check-yaml
+        name: Check YAML
 
-###### PLACEHOLDER FOR CFN GUARD CHECKS  ######
+      # Check for merge conflicts
+      - id: check-merge-conflict
+        name: Check for Merge Conflicts
 
-###############################################
+      # Check for large files
+      - id: check-added-large-files
+        name: Check for Large Files
+        args: [--maxkb=1000]
 
-## General linting
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b #v5.0.0
-  hooks:
-  - id: trailing-whitespace
+      # Detect private keys
+      - id: detect-private-key
+        name: Detect Private Keys
+
+      # Check JSON files
+      - id: check-json
+        name: Check JSON
+
+      # Pretty format JSON
+      - id: pretty-format-json
+        name: Pretty Format JSON
+        args: [--autofix, --no-sort-keys]
