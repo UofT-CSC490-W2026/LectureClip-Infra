@@ -10,11 +10,11 @@ config {
 }
 
 rule "terraform_required_providers" {
-  enabled = true
+  enabled = false # Disabled for child modules - they inherit providers from root
 }
 
 rule "terraform_required_version" {
-  enabled = true
+  enabled = false # Disabled for child modules - version is enforced at root
 }
 
 rule "terraform_naming_convention" {

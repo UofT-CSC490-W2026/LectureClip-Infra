@@ -1,45 +1,58 @@
 # ============================================================================
-# VARIABLES - ROOT MODULE
+# LAMBDA MODULE - VARIABLES
 # ============================================================================
 
-variable "aws_region" {
-  description = "AWS region for all resources"
+variable "project_name" {
+  description = "Project name for resource naming"
   type        = string
-  default     = "ca-central-1"
+}
+
+variable "environment" {
+  description = "Environment name"
+  type        = string
 }
 
 variable "account_id" {
   description = "AWS Account ID"
   type        = string
-  default     = "757242163795"
 }
 
-variable "project_name" {
-  description = "Project name used for resource naming and tagging"
+variable "user_videos_bucket_id" {
+  description = "ID of the user videos S3 bucket"
   type        = string
-  default     = "lectureclip"
 }
 
-variable "environment" {
-  description = "Environment name (e.g., dev, staging, prod)"
+variable "lambda_role_arn" {
+  description = "ARN of the Lambda execution role"
   type        = string
-  default     = "dev"
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+}
+
+variable "private_subnet_ids" {
+  description = "IDs of the private subnets for Lambda VPC placement"
+  type        = list(string)
+}
+
+variable "lambda_security_group_id" {
+  description = "ID of the Lambda security group"
+  type        = string
 }
 
 variable "lambda_code_s3_key" {
   description = "S3 key for the video-upload Lambda deployment package"
   type        = string
-  default     = "lambdas/video-upload/video_upload.zip"
 }
 
 variable "multipart_init_s3_key" {
   description = "S3 key for the multipart-init Lambda deployment package"
   type        = string
-  default     = "lambdas/multipart-init/multipart_init.zip"
 }
 
 variable "multipart_complete_s3_key" {
   description = "S3 key for the multipart-complete Lambda deployment package"
   type        = string
-  default     = "lambdas/multipart-complete/multipart_complete.zip"
 }

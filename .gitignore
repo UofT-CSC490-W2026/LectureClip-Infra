@@ -38,5 +38,8 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Ignore temp directories used for Lambda packaging
+**/temp/
+
 .vscode/
 .idea/

@@ -1,82 +1,150 @@
-# Infrastructure as Code Template Repository with AWS CloudFormation and Terraform Support
+# LectureClip Infrastructure
 
-This repository provides a standardized template for Infrastructure as Code (IaC) implementations using both AWS CloudFormation and Terraform. It includes comprehensive CI/CD workflows, security checks, and code quality enforcement to ensure reliable and secure infrastructure deployments.
+AWS infrastructure for the LectureClip platform, provisioned with Terraform. This repo manages all cloud resources — networking, storage, compute, and API — for the video upload pipeline.
 
-The repository implements industry best practices for infrastructure management including automated linting, security scanning with Checkov, and pre-commit hooks for code quality. It supports both AWS CloudFormation and Terraform deployments with proper version control integration and automated workflow checks through GitHub Actions.
+Lambda function **code** is owned and deployed by the application CI repo (`LectureClip-App`) via `aws lambda update-function-code`. Terraform provisions the function shells and does not overwrite application deployments.
 
-### Full solution
+### Terraform Modules
 
-* The `main` branch is intended as part of walkthrough in the workshop.
-* The `solution` branch contains the full solution for the workshop.
+| Module | Resources |
+|---|---|
+| `networking` | VPC, public/private subnets, NAT Gateway, Lambda security group |
+| `kms` | Customer-managed key for S3 and CloudWatch encryption |
+| `storage` | User videos S3 bucket (KMS-encrypted, versioned) |
+| `iam` | Lambda execution role, GitHub Actions OIDC role |
+| `lambda` | 3 Lambda functions + Lambda artifacts S3 bucket |
+| `api_gateway` | REST API with 3 endpoints (CORS-enabled) |
+
+### API Endpoints
+
+| Method | Path | Lambda | Description |
+|---|---|---|---|
+| POST | `/uploads` | `video-upload` | Returns a pre-signed PUT URL for direct upload |
+| POST | `/multipart/init` | `multipart-init` | Creates a multipart upload, returns pre-signed part URLs |
+| POST | `/multipart/complete` | `multipart-complete` | Assembles uploaded parts into a final S3 object |
 
 ## Repository Structure
 
 ```
 .
-├── cloudformation/         # CloudFormation templates and related resources
-│   └── template.yaml       # Main CloudFormation template file
-├── terraform/              # Terraform configuration files
-│   ├── main.tf             # Main Terraform configuration
-│   ├── providers.tf        # AWS provider configurations
-│   └── version.tf          # Terraform version and backend configuration
-├── .github/
-│   └── workflows/                # GitHub Actions workflow definitions
-│       ├── on-push.yaml          # Workflow for push events
-│       └── on-pull-request.yaml  # Workflow for pull requests
-└── .config/
-    ├── checkov/            # Config for checkov
-    ├── cfn-guard/          # Config for cfn-guard
-    └── tf-lint/            # Config for tf-lint
+├── terraform/
+│   ├── main.tf             # Root module — wires all modules together
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars    # Environment values (region, project name, etc.)
+│   └── modules/
+│       ├── networking/
+│       ├── kms/
+│       ├── storage/
+│       ├── iam/
+│       ├── lambda/
+│       └── api_gateway/
+├── scripts/
+│   └── bootstrap.sh        # One-time setup: creates S3 backend bucket + DynamoDB lock table
+├── .config/
+│   ├── tf-lint/.tflint.hcl # TFLint rules
+│   └── cfn-guard/          # cfn-guard rules
+├── .github/workflows/
+│   ├── on-push.yaml        # Format check, validate, lint, security scan
+│   └── on-pull-request.yaml
+└── .pre-commit-config.yaml
 ```
 
-## Usage Instructions
+## Setup
 
 ### Prerequisites
-- AWS CLI installed and configured
-- Git installed
-- GitHub repository created from this template
 
-### Installation
+- [Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli) >= 1.6
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) configured with appropriate credentials
+- Git
 
-1. Fork this repository into your own GitHub.
+### 1. Install dev tools
 
-2. Clone the repository:
-
-```bash
-git clone https://github.com/your-org/your-repo.git
-cd your-repo
-```
-
-3. Set up the development environment:
+Installs Terraform, tflint, cfn-lint, cfn-guard, checkov, and pre-commit hooks:
 
 ```bash
 make install
 ```
 
-4. Configure AWS credentials:
+### 2. Authenticate with SSO
+If using AWS SSO, run:
 
 ```bash
-aws configure
+aws sso login --profile <your-profile-name>
+export AWS_PROFILE=<your-profile-name>
 ```
 
-## Data Flow
+### 3. Bootstrap the remote backend
 
-The infrastructure deployment process follows a structured workflow from local development through CI/CD pipelines to production deployment.
+Run for the first time only once to create the S3 bucket and enable state locking used by the Terraform backend:
 
-```ascii
-[Local Development] -> [Pre-commit Hooks] -> [GitHub Actions] -> [AWS Infrastructure]
-     |                    |                       |                     |
-     v                    v                       v                     v
-Code Changes     -->  Code Quality    -->    Validation     -->    Deployment
-                     Checks & Linting     Security Scanning
+```bash
+bash scripts/bootstrap.sh
 ```
 
-Key Component Interactions:
+This creates:
+- S3 bucket `757242163795-workshop-tf-state` (versioned, encrypted, public access blocked)
+- DynamoDB table `terraform-state-lock` (used for locking with older Terraform; native S3 locking is enabled)
 
-1. Local development triggers pre-commit hooks for initial validation
-2. Git push triggers GitHub Actions workflows
-3. Workflows perform format checking and linting
-4. Security scanning with Checkov validates infrastructure
-5. Pull request checks ensure code quality
-6. Successful checks allow deployment to AWS
-7. Infrastructure changes are tracked in version control
+### 4. Initialize and deploy
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+### 5. Get API endpoint URLs
+
+```bash
+terraform output uploads_endpoint
+terraform output multipart_init_endpoint
+terraform output multipart_complete_endpoint
+```
+
+## Deploying Changes
+
+### Modifying existing infrastructure
+
+Edit the relevant module under `terraform/modules/`, then:
+
+```bash
+cd terraform
+terraform plan   # Review changes
+terraform apply
+```
+
+### Adding a new module
+
+1. Create `terraform/modules/<name>/main.tf`, `variables.tf`, `outputs.tf`
+2. Add the module block to `terraform/main.tf`
+3. Pass outputs to dependent modules as needed
+
+### Updating Lambda code
+
+Lambda code is managed by the application. Refer to the `LectureClip-App` repository for deployment instructions.
+
+## CI/CD
+
+### GitHub Actions variables required
+
+Set these in the repository's **Variables**:
+
+| Variable | Description |
+|---|---|
+| `AWS_REGION` | Target AWS region (e.g. `ca-central-1`) |
+| `AWS_ACCOUNT_ID` | AWS account ID |
+| `AWS_ROLE_TO_ASSUME` | IAM role ARN for OIDC-based auth |
+
+### Workflows
+
+**on-push** (pushes to `main`/`develop`): Terraform format check, validate, tflint, YAML/Markdown lint.
+
+## Remote State
+
+- **Backend**: S3
+- **Bucket**: `757242163795-workshop-tf-state`
+- **Key**: `lectureclip/terraform.tfstate`
+- **Region**: `ca-central-1`
+- **Locking**: Native S3 lock (`use_lockfile = true`)
