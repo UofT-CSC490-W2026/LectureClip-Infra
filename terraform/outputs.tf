@@ -31,3 +31,13 @@ output "kms_key_id" {
   description = "ID of the KMS encryption key"
   value       = module.kms.key_id
 }
+
+output "audio_transcription_state_machine_arn" {
+  description = "ARN of the audio transcription Step Functions state machine"
+  value       = module.transcription.state_machine_arn
+}
+
+output "transcriptions_table_name" {
+  description = "DynamoDB table that tracks Amazon Transcribe jobs"
+  value       = module.transcription.transcriptions_table_name
+}
