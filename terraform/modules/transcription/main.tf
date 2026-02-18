@@ -127,30 +127,6 @@ data "archive_file" "placeholder" {
 }
 
 # ============================================================================
-# CLOUDWATCH LOG GROUPS
-# ============================================================================
-
-resource "aws_cloudwatch_log_group" "s3_trigger" {
-  name              = "/aws/lambda/${local.name_prefix}-s3-trigger"
-  retention_in_days = 14
-}
-
-resource "aws_cloudwatch_log_group" "start_transcribe" {
-  name              = "/aws/lambda/${local.name_prefix}-start-transcribe"
-  retention_in_days = 14
-}
-
-resource "aws_cloudwatch_log_group" "process_transcribe" {
-  name              = "/aws/lambda/${local.name_prefix}-process-transcribe"
-  retention_in_days = 14
-}
-
-resource "aws_cloudwatch_log_group" "sfn_audio_transcription" {
-  name              = "/aws/states/${local.name_prefix}-audio-transcription"
-  retention_in_days = 14
-}
-
-# ============================================================================
 # STEP FUNCTIONS STATE MACHINE — IAM ROLE
 # ============================================================================
 
@@ -232,8 +208,6 @@ resource "aws_lambda_function" "start_transcribe" {
     ignore_changes = [source_code_hash]
   }
 
-  depends_on = [aws_cloudwatch_log_group.start_transcribe]
-
   tags = {
     Name        = "${var.project_name}-start-transcribe"
     Environment = var.environment
@@ -258,8 +232,6 @@ resource "aws_lambda_function" "process_transcribe" {
   lifecycle {
     ignore_changes = [source_code_hash]
   }
-
-  depends_on = [aws_cloudwatch_log_group.process_transcribe]
 
   tags = {
     Name        = "${var.project_name}-process-transcribe"
@@ -307,12 +279,6 @@ resource "aws_sfn_state_machine" "audio_transcription" {
     }
   })
 
-  logging_configuration {
-    log_destination        = "${aws_cloudwatch_log_group.sfn_audio_transcription.arn}:*"
-    include_execution_data = true
-    level                  = "ALL"
-  }
-
   tags = {
     Name        = "${var.project_name}-audio-transcription"
     Environment = var.environment
@@ -343,8 +309,6 @@ resource "aws_lambda_function" "s3_trigger" {
     ignore_changes = [source_code_hash]
   }
 
-  depends_on = [aws_cloudwatch_log_group.s3_trigger]
-
   tags = {
     Name        = "${var.project_name}-s3-trigger"
     Environment = var.environment
@@ -366,9 +330,9 @@ resource "aws_lambda_permission" "sns_invoke_s3_trigger" {
 }
 
 resource "aws_sns_topic_subscription" "s3_trigger" {
-  topic_arn = var.user_videos_sns_topic_arn
-  protocol  = "lambda"
-  endpoint  = aws_lambda_function.s3_trigger.arn
+  topic_arn  = var.user_videos_sns_topic_arn
+  protocol   = "lambda"
+  endpoint   = aws_lambda_function.s3_trigger.arn
 }
 
 # ============================================================================
