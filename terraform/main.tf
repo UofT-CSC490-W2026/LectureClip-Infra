@@ -115,6 +115,24 @@ module "lambda" {
 }
 
 # ============================================================================
+# TRANSCRIPTION MODULE
+# Audio transcription workflow: SNS → s3-trigger → Step Functions →
+# start-transcribe → Amazon Transcribe → EventBridge → process-transcribe
+# ============================================================================
+module "transcription" {
+  source = "./modules/transcription"
+
+  project_name              = var.project_name
+  environment               = var.environment
+  kms_key_arn               = module.kms.key_arn
+  user_videos_bucket_id     = module.storage.user_videos_bucket_id
+  user_videos_bucket_arn    = module.storage.user_videos_bucket_arn
+  user_videos_sns_topic_arn = module.storage.user_videos_sns_topic_arn
+
+  depends_on = [module.kms, module.storage]
+}
+
+# ============================================================================
 # API GATEWAY MODULE
 # Three endpoints: /uploads, /multipart/init, /multipart/complete
 # ============================================================================
