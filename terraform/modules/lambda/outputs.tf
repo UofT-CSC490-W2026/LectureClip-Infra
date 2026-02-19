@@ -46,13 +46,3 @@ output "multipart_complete_invoke_arn" {
   description = "Invoke ARN of the multipart-complete Lambda function"
   value       = aws_lambda_function.multipart_complete.invoke_arn
 }
-
-output "lambda_artifacts_bucket_id" {
-  description = "ID of the Lambda artifacts S3 bucket"
-  value       = aws_s3_bucket.lambda_artifacts.id
-}
-
-output "lambda_artifacts_bucket_arn" {
-  description = "ARN of the Lambda artifacts S3 bucket"
-  value       = aws_s3_bucket.lambda_artifacts.arn
-}

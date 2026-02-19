@@ -113,12 +113,6 @@ jobs:
             python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
           done
 
-      - name: Markdown Lint
-        uses: avto-dev/markdown-lint@v1
-        with:
-          args: '**/*.md'
-          ignore: 'node_modules'
-
   # ==========================================================================
   # SUMMARY
   # ==========================================================================

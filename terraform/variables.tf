@@ -25,21 +25,3 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
-
-variable "lambda_code_s3_key" {
-  description = "S3 key for the video-upload Lambda deployment package"
-  type        = string
-  default     = "lambdas/video-upload/video_upload.zip"
-}
-
-variable "multipart_init_s3_key" {
-  description = "S3 key for the multipart-init Lambda deployment package"
-  type        = string
-  default     = "lambdas/multipart-init/multipart_init.zip"
-}
-
-variable "multipart_complete_s3_key" {
-  description = "S3 key for the multipart-complete Lambda deployment package"
-  type        = string
-  default     = "lambdas/multipart-complete/multipart_complete.zip"
-}

@@ -101,17 +101,13 @@ module "storage" {
 module "lambda" {
   source = "./modules/lambda"
 
-  project_name              = var.project_name
-  environment               = var.environment
-  account_id                = var.account_id
-  user_videos_bucket_id     = module.storage.user_videos_bucket_id
-  lambda_role_arn           = module.iam.video_upload_lambda_role_arn
-  aws_region                = data.aws_region.current.name
-  private_subnet_ids        = module.networking.private_subnet_ids
-  lambda_security_group_id  = module.networking.lambda_security_group_id
-  lambda_code_s3_key        = var.lambda_code_s3_key
-  multipart_init_s3_key     = var.multipart_init_s3_key
-  multipart_complete_s3_key = var.multipart_complete_s3_key
+  project_name             = var.project_name
+  environment              = var.environment
+  user_videos_bucket_id    = module.storage.user_videos_bucket_id
+  lambda_role_arn          = module.iam.video_upload_lambda_role_arn
+  aws_region               = data.aws_region.current.name
+  private_subnet_ids       = module.networking.private_subnet_ids
+  lambda_security_group_id = module.networking.lambda_security_group_id
 }
 
 # ============================================================================
