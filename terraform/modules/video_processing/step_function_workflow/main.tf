@@ -1,10 +1,11 @@
 # ============================================================================
 # VIDEO PROCESSING STEP FUNCTION WORKFLOW MODULE - MAIN
-# Audio transcription workflow:
+# Video processing workflow:
 #   S3 upload → SNS → s3-trigger Lambda → Step Functions
 #   → start-transcribe Lambda (WAIT_FOR_TASK_TOKEN)
 #   → Amazon Transcribe (async)
-#   → EventBridge → process-transcribe Lambda → SendTaskSuccess → SFN done
+#   → EventBridge → process-transcribe Lambda → SendTaskSuccess
+#   → process-results Lambda (Bedrock embeddings) → SFN done
 # ============================================================================
 
 locals {
@@ -15,8 +16,8 @@ locals {
 # STEP FUNCTIONS STATE MACHINE — IAM ROLE
 # ============================================================================
 
-resource "aws_iam_role" "sfn_audio_transcription" {
-  name = "${local.name_prefix}-sfn-audio-transcription"
+resource "aws_iam_role" "sfn_video_processing" {
+  name = "${local.name_prefix}-snf-video-processing"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -30,14 +31,14 @@ resource "aws_iam_role" "sfn_audio_transcription" {
   })
 
   tags = {
-    Name        = "${local.name_prefix}-sfn-audio-transcription"
+    Name        = "${local.name_prefix}-snf-video-processing"
     Environment = var.environment
   }
 }
 
-resource "aws_iam_role_policy" "sfn_audio_transcription" {
-  name = "${local.name_prefix}-sfn-audio-transcription"
-  role = aws_iam_role.sfn_audio_transcription.id
+resource "aws_iam_role_policy" "sfn_video_processing" {
+  name = "${local.name_prefix}-snf-video-processing"
+  role = aws_iam_role.sfn_video_processing.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -46,7 +47,7 @@ resource "aws_iam_role_policy" "sfn_audio_transcription" {
         Sid      = "InvokeLambda"
         Effect   = "Allow"
         Action   = ["lambda:InvokeFunction"]
-        Resource = [var.start_transcribe_lambda_arn]
+        Resource = [var.start_transcribe_lambda_arn, var.process_results_lambda_arn]
       },
       {
         Sid    = "CloudWatchLogs"
@@ -68,19 +69,19 @@ resource "aws_iam_role_policy" "sfn_audio_transcription" {
 }
 
 # ============================================================================
-# STEP FUNCTIONS STATE MACHINE — AUDIO TRANSCRIPTION
+# STEP FUNCTIONS STATE MACHINE — Video Processing Workflow
 # start-transcribe uses WAIT_FOR_TASK_TOKEN: the Lambda stores the token in
 # DynamoDB and Step Functions pauses until process-transcribe calls
 # SendTaskSuccess (via EventBridge → Transcribe job state change).
 # ============================================================================
 
-resource "aws_sfn_state_machine" "audio_transcription" {
-  name     = "${var.project_name}-audio-transcription"
-  role_arn = aws_iam_role.sfn_audio_transcription.arn
+resource "aws_sfn_state_machine" "video_processing" {
+  name     = "${var.project_name}-video-processing"
+  role_arn = aws_iam_role.sfn_video_processing.arn
   type     = "STANDARD"
 
   definition = jsonencode({
-    Comment = "LectureClip audio transcription: start Transcribe job and wait for completion"
+    Comment = "LectureClip video processing: start Transcribe job, wait for completion, then generate embeddings"
     StartAt = "StartTranscribe"
     States = {
       StartTranscribe = {
@@ -99,6 +100,27 @@ resource "aws_sfn_state_machine" "audio_transcription" {
             ErrorEquals     = ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"]
             IntervalSeconds = 10
             MaxAttempts     = 6
+            BackoffRate     = 2
+          }
+        ]
+        Next = "ProcessResults"
+      }
+      ProcessResults = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::lambda:invoke"
+        Parameters = {
+          FunctionName = var.process_results_lambda_arn
+          "Payload.$"  = "$"
+        }
+        ResultSelector = {
+          "segmentCount.$"   = "$.Payload.segmentCount"
+          "embeddingCount.$" = "$.Payload.embeddingCount"
+        }
+        Retry = [
+          {
+            ErrorEquals     = ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"]
+            IntervalSeconds = 10
+            MaxAttempts     = 3
             BackoffRate     = 2
           }
         ]
@@ -190,7 +212,7 @@ resource "aws_iam_role_policy" "s3_trigger_lambda" {
         Sid      = "SFNStartExecution"
         Effect   = "Allow"
         Action   = ["states:StartExecution"]
-        Resource = aws_sfn_state_machine.audio_transcription.arn
+        Resource = aws_sfn_state_machine.video_processing.arn
       }
     ]
   })
@@ -222,7 +244,7 @@ resource "aws_lambda_function" "s3_trigger" {
 
   environment {
     variables = {
-      STATE_MACHINE_ARN = aws_sfn_state_machine.audio_transcription.arn
+      STATE_MACHINE_ARN = aws_sfn_state_machine.video_processing.arn
     }
   }
 

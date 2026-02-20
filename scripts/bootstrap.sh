@@ -20,7 +20,7 @@ echo ""
 
 # Create S3 bucket
 echo "📦 Creating S3 bucket..."
-if aws storage mb "s3://${BUCKET_NAME}" --region "${REGION}" 2>/dev/null; then
+if aws s3 mb "s3://${BUCKET_NAME}" --region "${REGION}" 2>/dev/null; then
     echo "✓ Created bucket: ${BUCKET_NAME}"
 else
     echo "✓ Bucket already exists: ${BUCKET_NAME}"

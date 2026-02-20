@@ -151,7 +151,7 @@ module "video_processing_lambdas" {
 # ============================================================================
 # VIDEO PROCESSING — STEP FUNCTION WORKFLOW MODULE
 # Audio transcription workflow: SNS → s3-trigger → Step Functions →
-# start-transcribe → Amazon Transcribe → EventBridge → process-transcribe
+# start-transcribe → Amazon Transcribe → EventBridge → process-transcribe -> process-results
 # ============================================================================
 module "video_processing_step_functions" {
   source = "./modules/video_processing/step_function_workflow"
@@ -161,6 +161,7 @@ module "video_processing_step_functions" {
   start_transcribe_lambda_arn      = module.video_processing_lambdas.start_transcribe_arn
   process_transcribe_lambda_arn    = module.video_processing_lambdas.process_transcribe_arn
   process_transcribe_function_name = module.video_processing_lambdas.process_transcribe_function_name
+  process_results_lambda_arn       = module.video_processing_lambdas.process_results_arn
   user_videos_sns_topic_arn        = module.storage.user_videos_sns_topic_arn
 
   depends_on = [module.video_processing_lambdas]

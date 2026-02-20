@@ -31,3 +31,8 @@ variable "user_videos_sns_topic_arn" {
   description = "ARN of the SNS topic that receives S3 ObjectCreated events from the user videos bucket"
   type        = string
 }
+
+variable "process_results_lambda_arn" {
+  description = "ARN of the process-results Lambda function invoked after transcription completes"
+  type        = string
+}
