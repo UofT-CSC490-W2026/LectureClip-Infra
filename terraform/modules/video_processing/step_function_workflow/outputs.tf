@@ -1,5 +1,5 @@
 # ============================================================================
-# TRANSCRIPTION MODULE - OUTPUTS
+# VIDEO PROCESSING STEP FUNCTION WORKFLOW MODULE - OUTPUTS
 # ============================================================================
 
 output "state_machine_arn" {
@@ -10,11 +10,6 @@ output "state_machine_arn" {
 output "state_machine_name" {
   description = "Name of the audio transcription Step Functions state machine"
   value       = aws_sfn_state_machine.audio_transcription.name
-}
-
-output "transcriptions_table_name" {
-  description = "Name of the DynamoDB table tracking transcription jobs"
-  value       = aws_dynamodb_table.transcriptions.name
 }
 
 output "s3_trigger_function_name" {

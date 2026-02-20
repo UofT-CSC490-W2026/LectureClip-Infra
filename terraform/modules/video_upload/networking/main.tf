@@ -1,7 +1,6 @@
 # ============================================================================
 # NETWORKING MODULE - MAIN
 # VPC, subnets, NAT gateway, and security groups for Lambda VPC placement
-# Note: NAT Gateway incurs ~$32/month — required for Lambda VPC egress to AWS APIs
 # ============================================================================
 
 # VPC

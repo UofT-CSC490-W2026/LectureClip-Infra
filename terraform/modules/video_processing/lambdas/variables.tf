@@ -1,5 +1,5 @@
 # ============================================================================
-# TRANSCRIPTION MODULE - VARIABLES
+# VIDEO PROCESSING LAMBDAS MODULE - VARIABLES
 # ============================================================================
 
 variable "project_name" {
@@ -27,7 +27,12 @@ variable "user_videos_bucket_arn" {
   type        = string
 }
 
-variable "user_videos_sns_topic_arn" {
-  description = "ARN of the SNS topic that receives S3 ObjectCreated events from the user videos bucket"
+variable "transcriptions_table_name" {
+  description = "Name of the DynamoDB table used to track Transcribe job states"
+  type        = string
+}
+
+variable "transcriptions_table_arn" {
+  description = "ARN of the DynamoDB table used to track Transcribe job states"
   type        = string
 }

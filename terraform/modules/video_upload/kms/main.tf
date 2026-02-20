@@ -3,7 +3,6 @@
 # Customer-managed key for encrypting S3 objects and CloudWatch logs.
 # Lambda access is managed via IAM role policy (IAM delegation pattern) —
 # no need to enumerate Lambda ARNs directly in the key policy.
-# Note: KMS key costs ~$1/month + $0.03 per 10,000 API calls
 # ============================================================================
 
 data "aws_caller_identity" "current" {}
