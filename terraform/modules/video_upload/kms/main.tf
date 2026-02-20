@@ -57,12 +57,12 @@ resource "aws_kms_key" "main" {
   })
 
   tags = {
-    Name        = "${var.project_name}-${var.environment}-key"
+    Name        = "${var.project_name}-${var.environment}-key-test"
     Environment = var.environment
   }
 }
 
 resource "aws_kms_alias" "main" {
-  name          = "alias/${var.project_name}-${var.environment}"
+  name          = "alias/${var.project_name}-${var.environment}-test"
   target_key_id = aws_kms_key.main.key_id
 }

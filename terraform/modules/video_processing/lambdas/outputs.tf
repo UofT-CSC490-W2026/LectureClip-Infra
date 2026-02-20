@@ -21,3 +21,13 @@ output "process_transcribe_function_name" {
   description = "Name of the process-transcribe Lambda function"
   value       = aws_lambda_function.process_transcribe.function_name
 }
+
+output "process_results_arn" {
+  description = "ARN of the process-results Lambda function"
+  value       = aws_lambda_function.process_results.arn
+}
+
+output "process_results_function_name" {
+  description = "Name of the process-results Lambda function"
+  value       = aws_lambda_function.process_results.function_name
+}
