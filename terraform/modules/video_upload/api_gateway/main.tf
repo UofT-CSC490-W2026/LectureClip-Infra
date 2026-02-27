@@ -7,15 +7,15 @@
 # ============================================================================
 
 resource "aws_api_gateway_rest_api" "main" {
-  name        = "${var.project_name}-api"
-  description = "LectureClip video upload API"
+  name        = "${var.project_name}-${var.environment}-api"
+  description = "LectureClip video upload API (${var.environment})"
 
   endpoint_configuration {
     types = ["REGIONAL"]
   }
 
   tags = {
-    Name        = "${var.project_name}-api"
+    Name        = "${var.project_name}-${var.environment}-api"
     Environment = var.environment
   }
 }

@@ -4,9 +4,11 @@
 # ============================================================================
 
 terraform {
+  # Partial backend config — supply the environment-specific key at init time:
+  #   terraform init -backend-config="environments/backend-dev.hcl"
+  #   terraform init -backend-config="environments/backend-prod.hcl"
   backend "s3" {
     bucket       = "757242163795-workshop-tf-state"
-    key          = "lectureclip/terraform.tfstate"
     region       = "ca-central-1"
     encrypt      = true
     use_lockfile = true
@@ -47,9 +49,11 @@ data "aws_region" "current" {}
 # GitHub Actions OIDC role for secure deployment without long-term credentials
 # ============================================================================
 module "cicd" {
-  source       = "./modules/cicd"
-  project_name = var.project_name
-  account_id   = var.account_id
+  source               = "./modules/cicd"
+  project_name         = var.project_name
+  environment          = var.environment
+  account_id           = var.account_id
+  create_oidc_provider = var.create_oidc_provider
 }
 
 # ============================================================================
