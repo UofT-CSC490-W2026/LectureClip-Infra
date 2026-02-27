@@ -3,8 +3,6 @@ name: 'Code Quality Checks'
 on:
   push:
     branches: [main, develop]
-  pull_request:
-    branches: [main]
 
 jobs:
   # ==========================================================================
@@ -112,6 +110,61 @@ jobs:
           for file in $(find . -name '*.yaml' -o -name '*.yml'); do
             python3 -c "import yaml; yaml.safe_load(open('$file'))" || exit 1
           done
+
+  # ==========================================================================
+  # DEPLOY — environment determined by branch
+  #   develop → dev
+  #   main    → prod
+  # ==========================================================================
+  deploy:
+    name: 'Deploy (${{ github.ref_name == ''main'' && ''prod'' || ''dev'' }})'
+    runs-on: ubuntu-latest
+    needs: [terraform-quality, security-scan, code-quality]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve environment
+        id: env
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "name=prod"        >> "$GITHUB_OUTPUT"
+            echo "backend=environments/backend-prod.hcl" >> "$GITHUB_OUTPUT"
+            echo "varfile=environments/prod.tfvars"      >> "$GITHUB_OUTPUT"
+            echo "role=${{ vars.AWS_ROLE_TO_ASSUME_PROD }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=dev"         >> "$GITHUB_OUTPUT"
+            echo "backend=environments/backend-dev.hcl"  >> "$GITHUB_OUTPUT"
+            echo "varfile=environments/dev.tfvars"       >> "$GITHUB_OUTPUT"
+            echo "role=${{ vars.AWS_ROLE_TO_ASSUME_DEV }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ steps.env.outputs.role }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init -backend-config="${{ steps.env.outputs.backend }}"
+
+      - name: Terraform Plan
+        working-directory: ./terraform
+        run: terraform plan -var-file="${{ steps.env.outputs.varfile }}" -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -auto-approve tfplan
 
   # ==========================================================================
   # SUMMARY

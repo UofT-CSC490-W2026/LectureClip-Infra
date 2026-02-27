@@ -105,7 +105,7 @@ data "archive_file" "placeholder" {
 # ============================================================================
 
 resource "aws_lambda_function" "start_transcribe" {
-  function_name    = "${var.project_name}-start-transcribe"
+  function_name    = "${local.name_prefix}-start-transcribe"
   role             = aws_iam_role.transcription_lambda.arn
   handler          = "index.handler"
   runtime          = "python3.13"
@@ -125,13 +125,13 @@ resource "aws_lambda_function" "start_transcribe" {
   }
 
   tags = {
-    Name        = "${var.project_name}-start-transcribe"
+    Name        = "${local.name_prefix}-start-transcribe"
     Environment = var.environment
   }
 }
 
 resource "aws_lambda_function" "process_transcribe" {
-  function_name    = "${var.project_name}-process-transcribe"
+  function_name    = "${local.name_prefix}-process-transcribe"
   role             = aws_iam_role.transcription_lambda.arn
   handler          = "index.handler"
   runtime          = "python3.13"
@@ -150,7 +150,7 @@ resource "aws_lambda_function" "process_transcribe" {
   }
 
   tags = {
-    Name        = "${var.project_name}-process-transcribe"
+    Name        = "${local.name_prefix}-process-transcribe"
     Environment = var.environment
   }
 }
@@ -228,7 +228,7 @@ resource "aws_iam_role_policy" "process_results_lambda" {
 # ============================================================================
 
 resource "aws_lambda_function" "process_results" {
-  function_name    = "${var.project_name}-process-results"
+  function_name    = "${local.name_prefix}-process-results"
   role             = aws_iam_role.process_results_lambda.arn
   handler          = "index.handler"
   runtime          = "python3.13"
@@ -248,7 +248,7 @@ resource "aws_lambda_function" "process_results" {
   }
 
   tags = {
-    Name        = "${var.project_name}-process-results"
+    Name        = "${local.name_prefix}-process-results"
     Environment = var.environment
   }
 }

@@ -1,8 +1,22 @@
 # ============================================================================
 # GITHUB ACTIONS OIDC & ROLE
+# The OIDC provider is a singleton per AWS account. Set create_oidc_provider=true
+# for prod (first deploy). Dev uses a data source to reference the existing provider.
 # ============================================================================
 
+locals {
+  name_prefix = "${var.project_name}-${var.environment}"
+
+  # Branch that is allowed to deploy infra for this environment:
+  #   dev  → develop branch
+  #   prod → main branch
+  deploy_branch = var.environment == "prod" ? "main" : "develop"
+}
+
+# Create the OIDC provider only once (in prod). Dev looks it up via data source.
 resource "aws_iam_openid_connect_provider" "github" {
+  count = var.create_oidc_provider ? 1 : 0
+
   url = "https://token.actions.githubusercontent.com"
 
   client_id_list = [
@@ -19,9 +33,24 @@ resource "aws_iam_openid_connect_provider" "github" {
   }
 }
 
+data "aws_iam_openid_connect_provider" "github" {
+  count = var.create_oidc_provider ? 0 : 1
+  url   = "https://token.actions.githubusercontent.com"
+}
+
+locals {
+  oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
+}
+
+# ============================================================================
+# GITHUB ACTIONS ROLE — INFRA REPO (LectureClip-Infra)
+# Scoped to the environment's deploy branch (develop→dev, main→prod).
+# PRs to main also allowed so the plan step can run against prod state.
+# ============================================================================
+
 resource "aws_iam_role" "github_actions" {
-  name        = "${var.project_name}-github-actions"
-  description = "Role for GitHub Actions to deploy LectureClip infrastructure"
+  name        = "${local.name_prefix}-github-actions"
+  description = "Role for GitHub Actions to deploy LectureClip ${var.environment} infrastructure"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -29,7 +58,7 @@ resource "aws_iam_role" "github_actions" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = aws_iam_openid_connect_provider.github.arn
+          Federated = local.oidc_provider_arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
@@ -37,7 +66,11 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:UofT-CSC490-W2026/LectureClip-Infra:*"
+            # Allow the environment's deploy branch, plus PRs (for plan-only runs)
+            "token.actions.githubusercontent.com:sub" = [
+              "repo:UofT-CSC490-W2026/LectureClip-Infra:ref:refs/heads/${local.deploy_branch}",
+              "repo:UofT-CSC490-W2026/LectureClip-Infra:pull_request"
+            ]
           }
         }
       }
@@ -45,12 +78,13 @@ resource "aws_iam_role" "github_actions" {
   })
 
   tags = {
-    Name = "${var.project_name}-github-actions"
+    Name        = "${local.name_prefix}-github-actions"
+    Environment = var.environment
   }
 }
 
 resource "aws_iam_role_policy" "github_actions_ssm" {
-  name = "${var.project_name}-github-actions-ssm"
+  name = "${local.name_prefix}-github-actions-ssm"
   role = aws_iam_role.github_actions.name
 
   policy = jsonencode({
@@ -68,7 +102,7 @@ resource "aws_iam_role_policy" "github_actions_ssm" {
 }
 
 resource "aws_iam_role_policy" "github_actions_tf_state" {
-  name = "${var.project_name}-github-actions-tf-state"
+  name = "${local.name_prefix}-github-actions-tf-state"
   role = aws_iam_role.github_actions.name
 
   policy = jsonencode({
@@ -92,13 +126,14 @@ resource "aws_iam_role_policy" "github_actions_tf_state" {
 }
 
 # ============================================================================
-# GITHUB ACTIONS OIDC ROLE — APP REPO (LectureClip-App)
-# Scoped to Lambda deployments only; separate from the Infra repo's role.
+# GITHUB ACTIONS ROLE — APP REPO (LectureClip-App)
+# Scoped to Lambda deployments for this environment only.
+# Keyed to the environment's deploy branch (develop→dev, main→prod).
 # ============================================================================
 
 resource "aws_iam_role" "github_actions_app" {
-  name        = "${var.project_name}-github-actions-app"
-  description = "Role for LectureClip-App GitHub Actions to deploy Lambda functions"
+  name        = "${local.name_prefix}-github-actions-app"
+  description = "Role for LectureClip-App GitHub Actions to deploy ${var.environment} Lambda functions"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -106,7 +141,7 @@ resource "aws_iam_role" "github_actions_app" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = aws_iam_openid_connect_provider.github.arn
+          Federated = local.oidc_provider_arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
@@ -114,7 +149,7 @@ resource "aws_iam_role" "github_actions_app" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:UofT-CSC490-W2026/LectureClip-App:*"
+            "token.actions.githubusercontent.com:sub" = "repo:UofT-CSC490-W2026/LectureClip-App:ref:refs/heads/${local.deploy_branch}"
           }
         }
       }
@@ -122,12 +157,13 @@ resource "aws_iam_role" "github_actions_app" {
   })
 
   tags = {
-    Name = "${var.project_name}-github-actions-app"
+    Name        = "${local.name_prefix}-github-actions-app"
+    Environment = var.environment
   }
 }
 
 resource "aws_iam_role_policy" "github_actions_app_lambda_deploy" {
-  name = "${var.project_name}-github-actions-app-lambda-deploy"
+  name = "${local.name_prefix}-github-actions-app-lambda-deploy"
   role = aws_iam_role.github_actions_app.name
 
   policy = jsonencode({
@@ -140,7 +176,7 @@ resource "aws_iam_role_policy" "github_actions_app_lambda_deploy" {
           "lambda:UpdateFunctionCode",
           "lambda:UpdateFunctionConfiguration",
         ]
-        Resource = "arn:aws:lambda:*:${var.account_id}:function:${var.project_name}-*"
+        Resource = "arn:aws:lambda:*:${var.account_id}:function:${var.project_name}-${var.environment}-*"
       }
     ]
   })

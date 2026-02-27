@@ -10,7 +10,7 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true
 
   tags = {
-    Name        = "${var.project_name}-vpc"
+    Name        = "${var.project_name}-${var.environment}-vpc"
     Environment = var.environment
   }
 }
@@ -20,7 +20,7 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name        = "${var.project_name}-igw"
+    Name        = "${var.project_name}-${var.environment}-igw"
     Environment = var.environment
   }
 }
@@ -35,7 +35,7 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.project_name}-public-${var.availability_zones[count.index]}"
+    Name        = "${var.project_name}-${var.environment}-public-${var.availability_zones[count.index]}"
     Environment = var.environment
     Tier        = "public"
   }
@@ -50,7 +50,7 @@ resource "aws_subnet" "private" {
   availability_zone = var.availability_zones[count.index]
 
   tags = {
-    Name        = "${var.project_name}-private-${var.availability_zones[count.index]}"
+    Name        = "${var.project_name}-${var.environment}-private-${var.availability_zones[count.index]}"
     Environment = var.environment
     Tier        = "private"
   }
@@ -61,7 +61,7 @@ resource "aws_eip" "nat" {
   domain = "vpc"
 
   tags = {
-    Name        = "${var.project_name}-nat-eip"
+    Name        = "${var.project_name}-${var.environment}-nat-eip"
     Environment = var.environment
   }
 
@@ -74,7 +74,7 @@ resource "aws_nat_gateway" "main" {
   subnet_id     = aws_subnet.public[0].id
 
   tags = {
-    Name        = "${var.project_name}-nat"
+    Name        = "${var.project_name}-${var.environment}-nat"
     Environment = var.environment
   }
 
@@ -91,7 +91,7 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name        = "${var.project_name}-public-rt"
+    Name        = "${var.project_name}-${var.environment}-public-rt"
     Environment = var.environment
   }
 }
@@ -106,7 +106,7 @@ resource "aws_route_table" "private" {
   }
 
   tags = {
-    Name        = "${var.project_name}-private-rt"
+    Name        = "${var.project_name}-${var.environment}-private-rt"
     Environment = var.environment
   }
 }
@@ -129,7 +129,7 @@ resource "aws_route_table_association" "private" {
 
 # Lambda Security Group — egress only (Lambda is invoked by the runtime, not by network)
 resource "aws_security_group" "lambda" {
-  name        = "${var.project_name}-lambda-sg"
+  name        = "${var.project_name}-${var.environment}-lambda-sg"
   description = "Security group for Lambda functions - egress to AWS APIs only"
   vpc_id      = aws_vpc.main.id
 
@@ -150,7 +150,7 @@ resource "aws_security_group" "lambda" {
   }
 
   tags = {
-    Name        = "${var.project_name}-lambda-sg"
+    Name        = "${var.project_name}-${var.environment}-lambda-sg"
     Environment = var.environment
   }
 }

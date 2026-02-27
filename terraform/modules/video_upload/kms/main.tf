@@ -63,6 +63,7 @@ resource "aws_kms_key" "main" {
 }
 
 resource "aws_kms_alias" "main" {
+  # TODO: test suffix should be removed once the previously made keys are deleted.
   name          = "alias/${var.project_name}-${var.environment}-test"
   target_key_id = aws_kms_key.main.key_id
 }

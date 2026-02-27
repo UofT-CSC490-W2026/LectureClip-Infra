@@ -8,7 +8,8 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+  # PRs target main, so we plan against the prod environment
+  AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME_PROD }}
 
 jobs:
   tf-plan-analysis:
@@ -19,16 +20,77 @@ jobs:
       id-token: write
       pull-requests: write # for git bot comment
     outputs:
-      tfplan: ${{ steps.plan.outputs.tfplan }}
+      tfplan: ${{ steps.plan.outputs.stdout }}
       checkov_status: ${{ steps.checkov.outcome }}
       plan_status: ${{ steps.plan.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      ###### PLACEHOLDER FOR TERRAFORM PLAN   ######
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      ##############################################
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init -backend-config="environments/backend-prod.hcl"
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ./terraform
+        run: terraform plan -var-file="environments/prod.tfvars" -no-color
+        continue-on-error: true
+
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: terraform/
+          framework: terraform
+          output_format: cli
+          quiet: true
+          soft_fail: true
+
+      - name: Post Plan to PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const planOutput = `${{ steps.plan.outputs.stdout }}`;
+            const planStatus = '${{ steps.plan.outcome }}';
+            const checkovStatus = '${{ steps.checkov.outcome }}';
+            const icon = planStatus === 'success' ? '✅' : '❌';
+
+            const body = [
+              `## ${icon} Terraform Plan — \`prod\``,
+              '',
+              `| Check | Status |`,
+              `|-------|--------|`,
+              `| Terraform Plan | ${planStatus === 'success' ? '✅ Success' : '❌ Failed'} |`,
+              `| Checkov Security | ${checkovStatus === 'success' ? '✅ Passed' : '⚠️ Warnings'} |`,
+              '',
+              '<details><summary>Show Plan</summary>',
+              '',
+              '```terraform',
+              planOutput.substring(0, 60000),
+              '```',
+              '</details>',
+              '',
+              `*Triggered by @${{ github.actor }} on \`${{ github.head_ref }}\`*`
+            ].join('\n');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
 
   cfn-analysis:
     name: 'CloudFormation Analysis'
@@ -42,11 +104,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      ###### PLACEHOLDER FOR CFN GUARD ######
+      - name: Install cfn-guard
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf \
+            https://raw.githubusercontent.com/aws-cloudformation/cloudformation-guard/main/install-guard.sh \
+            | sh
+          echo "$HOME/.guard/bin" >> $GITHUB_PATH
 
-      #######################################
+      - name: Run cfn-guard
+        id: cfn-guard
+        run: |
+          if find . -name '*.yaml' -o -name '*.json' | xargs grep -l 'AWSTemplateFormatVersion' 2>/dev/null | grep -q .; then
+            cfn-guard validate --data . --rules .config/ 2>&1 || true
+          else
+            echo "No CloudFormation templates found — skipping cfn-guard"
+          fi
+        continue-on-error: true
 
-
-###### PLACEHOLDER FOR SUMMARY #######
-
-######################################
+  # ==========================================================================
+  # SUMMARY
+  # ==========================================================================
+  pr-summary:
+    name: 'PR Summary'
+    needs: [tf-plan-analysis, cfn-analysis]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Write job summary
+        run: |
+          echo "### 📋 PR Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform Plan (prod) | ${{ needs.tf-plan-analysis.outputs.plan_status == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Checkov Security | ${{ needs.tf-plan-analysis.outputs.checkov_status == 'success' && '✅ Passed' || '⚠️ Warnings' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CFN Guard | ${{ needs.cfn-analysis.outputs.cfn_guard_status == 'success' && '✅ Passed' || '⚠️ Skipped/Warnings' }} |" >> $GITHUB_STEP_SUMMARY

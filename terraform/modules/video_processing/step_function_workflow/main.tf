@@ -76,7 +76,7 @@ resource "aws_iam_role_policy" "sfn_video_processing" {
 # ============================================================================
 
 resource "aws_sfn_state_machine" "video_processing" {
-  name     = "${var.project_name}-video-processing"
+  name     = "${local.name_prefix}-video-processing"
   role_arn = aws_iam_role.sfn_video_processing.arn
   type     = "STANDARD"
 
@@ -130,7 +130,7 @@ resource "aws_sfn_state_machine" "video_processing" {
   })
 
   tags = {
-    Name        = "${var.project_name}-audio-transcription"
+    Name        = "${local.name_prefix}-audio-transcription"
     Environment = var.environment
   }
 }
@@ -234,7 +234,7 @@ data "archive_file" "placeholder" {
 }
 
 resource "aws_lambda_function" "s3_trigger" {
-  function_name    = "${var.project_name}-s3-trigger"
+  function_name    = "${local.name_prefix}-s3-trigger"
   role             = aws_iam_role.s3_trigger_lambda.arn
   handler          = "index.handler"
   runtime          = "python3.13"
@@ -253,7 +253,7 @@ resource "aws_lambda_function" "s3_trigger" {
   }
 
   tags = {
-    Name        = "${var.project_name}-s3-trigger"
+    Name        = "${local.name_prefix}-s3-trigger"
     Environment = var.environment
   }
 }
