@@ -166,6 +166,13 @@ jobs:
         working-directory: ./terraform
         run: terraform apply -auto-approve tfplan
 
+      - name: Deployment Summary
+        if: always()
+        run: |
+          echo "### 🚀 Deployment Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Environment: ${{ steps.env.outputs.name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Result: ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
   # ==========================================================================
   # SUMMARY
   # ==========================================================================
