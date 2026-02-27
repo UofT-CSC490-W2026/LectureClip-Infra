@@ -120,7 +120,6 @@ jobs:
     name: 'Deploy (${{ github.ref_name == ''main'' && ''prod'' || ''dev'' }})'
     runs-on: ubuntu-latest
     needs: [terraform-quality, security-scan, code-quality]
-    if: github.event_name == 'push'
     permissions:
       contents: read
       id-token: write
