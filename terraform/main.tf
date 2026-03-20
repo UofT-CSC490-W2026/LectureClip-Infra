@@ -28,6 +28,23 @@ terraform {
   }
 }
 
+# ============================================================================
+# AURORA DB MODULE
+# Aurora Serverless v2 PostgreSQL with pgvector for embeddings and evaluation
+# ============================================================================
+module "aurora_db" {
+  source = "./modules/video_processing/aurora_db"
+
+  project_name             = var.project_name
+  environment              = var.environment
+  vpc_id                   = module.networking.vpc_id
+  private_subnet_ids       = module.networking.private_subnet_ids
+  lambda_security_group_id = module.networking.lambda_security_group_id
+  kms_key_arn              = module.kms.key_arn
+
+  depends_on = [module.networking, module.kms]
+}
+
 provider "aws" {
   region = var.aws_region
 
@@ -148,8 +165,11 @@ module "video_processing_lambdas" {
   user_videos_bucket_arn    = module.storage.user_videos_bucket_arn
   transcriptions_table_name = module.video_processing_database.transcriptions_table_name
   transcriptions_table_arn  = module.video_processing_database.transcriptions_table_arn
+  aurora_cluster_arn        = module.aurora_db.cluster_arn
+  aurora_secret_arn         = module.aurora_db.secret_arn
+  aurora_db_name            = module.aurora_db.db_name
 
-  depends_on = [module.kms, module.storage, module.video_processing_database]
+  depends_on = [module.kms, module.storage, module.video_processing_database, module.aurora_db]
 }
 
 # ============================================================================

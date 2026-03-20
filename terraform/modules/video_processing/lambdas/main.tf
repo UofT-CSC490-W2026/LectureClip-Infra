@@ -215,6 +215,18 @@ resource "aws_iam_role_policy" "process_results_lambda" {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
         Resource = "arn:aws:bedrock:*::foundation-model/amazon.titan-embed-text-v2:0"
+      },
+      {
+        Sid      = "RDSDataAPI"
+        Effect   = "Allow"
+        Action   = ["rds-data:ExecuteStatement", "rds-data:BatchExecuteStatement"]
+        Resource = var.aurora_cluster_arn
+      },
+      {
+        Sid      = "AuroraSecretAccess"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = var.aurora_secret_arn
       }
     ]
   })
@@ -240,6 +252,9 @@ resource "aws_lambda_function" "process_results" {
     variables = {
       EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
       EMBEDDING_DIM      = "1024"
+      AURORA_CLUSTER_ARN = var.aurora_cluster_arn
+      AURORA_SECRET_ARN  = var.aurora_secret_arn
+      AURORA_DB_NAME     = var.aurora_db_name
     }
   }
 
