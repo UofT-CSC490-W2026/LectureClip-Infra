@@ -193,7 +193,9 @@ module "video_processing_step_functions" {
 
 # ============================================================================
 # API GATEWAY MODULE
-# Three endpoints: /uploads, /multipart/init, /multipart/complete
+# REST API + /uploads, /multipart/init, /multipart/complete resources.
+# Deployment and stage are created below so that the retrieval module's
+# /query resources can be included in the same deployment trigger.
 # ============================================================================
 module "api_gateway" {
   source = "./modules/video_upload/api_gateway"
@@ -206,4 +208,69 @@ module "api_gateway" {
   multipart_init_invoke_arn        = module.lambda.multipart_init_invoke_arn
   multipart_complete_function_name = module.lambda.multipart_complete_function_name
   multipart_complete_invoke_arn    = module.lambda.multipart_complete_invoke_arn
+}
+
+# ============================================================================
+# RETRIEVAL MODULE
+# query-segments Lambda + IAM + POST /query API Gateway route
+# ============================================================================
+module "retrieval" {
+  source = "./modules/retrieval"
+
+  project_name              = var.project_name
+  environment               = var.environment
+  aurora_cluster_arn        = module.aurora_db.cluster_arn
+  aurora_secret_arn         = module.aurora_db.secret_arn
+  aurora_db_name            = module.aurora_db.db_name
+  kms_key_arn               = module.kms.key_arn
+  bucket_name               = module.storage.user_videos_bucket_id
+  rest_api_id               = module.api_gateway.api_id
+  rest_api_execution_arn    = module.api_gateway.api_execution_arn
+  rest_api_root_resource_id = module.api_gateway.root_resource_id
+
+  depends_on = [module.api_gateway, module.aurora_db, module.kms]
+}
+
+# ============================================================================
+# API GATEWAY DEPLOYMENT & STAGE
+# Single deployment so all routes (/uploads, /multipart/*, /query) are
+# included in one trigger hash and deployed atomically.
+# NOTE: if migrating an existing environment, run:
+#   terraform state mv module.api_gateway.aws_api_gateway_deployment.main \
+#                       aws_api_gateway_deployment.main
+#   terraform state mv module.api_gateway.aws_api_gateway_stage.main \
+#                       aws_api_gateway_stage.main
+# ============================================================================
+resource "aws_api_gateway_deployment" "main" {
+  rest_api_id = module.api_gateway.api_id
+
+  triggers = {
+    redeployment = sha1(jsonencode([
+      module.api_gateway.uploads_post_integration_id,
+      module.api_gateway.uploads_options_integration_id,
+      module.api_gateway.multipart_init_post_integration_id,
+      module.api_gateway.multipart_init_options_integration_id,
+      module.api_gateway.multipart_complete_post_integration_id,
+      module.api_gateway.multipart_complete_options_integration_id,
+      module.retrieval.query_post_integration_id,
+      module.retrieval.query_options_integration_id,
+    ]))
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [module.api_gateway, module.retrieval]
+}
+
+resource "aws_api_gateway_stage" "main" {
+  deployment_id = aws_api_gateway_deployment.main.id
+  rest_api_id   = module.api_gateway.api_id
+  stage_name    = var.environment
+
+  tags = {
+    Name        = "${var.project_name}-${var.environment}"
+    Environment = var.environment
+  }
 }
