@@ -12,19 +12,29 @@ output "aws_region" {
   value       = data.aws_region.current.name
 }
 
+output "api_base_url" {
+  description = "Base URL for all API endpoints"
+  value       = aws_api_gateway_stage.main.invoke_url
+}
+
 output "uploads_endpoint" {
   description = "POST /uploads — generate a pre-signed URL for direct video upload"
-  value       = module.api_gateway.uploads_endpoint
+  value       = "${aws_api_gateway_stage.main.invoke_url}/uploads"
 }
 
 output "multipart_init_endpoint" {
   description = "POST /multipart/init — initialize a multipart upload and get part URLs"
-  value       = module.api_gateway.multipart_init_endpoint
+  value       = "${aws_api_gateway_stage.main.invoke_url}/multipart/init"
 }
 
 output "multipart_complete_endpoint" {
   description = "POST /multipart/complete — assemble uploaded parts into a final object"
-  value       = module.api_gateway.multipart_complete_endpoint
+  value       = "${aws_api_gateway_stage.main.invoke_url}/multipart/complete"
+}
+
+output "query_endpoint" {
+  description = "POST /query — semantic search over lecture transcript segments"
+  value       = "${aws_api_gateway_stage.main.invoke_url}/query"
 }
 
 output "kms_key_id" {
