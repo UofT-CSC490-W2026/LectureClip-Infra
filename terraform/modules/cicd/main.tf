@@ -460,6 +460,7 @@ resource "aws_iam_role_policy" "github_actions_app_lambda_deploy" {
           "lambda:GetFunctionConfiguration",
           "lambda:UpdateFunctionCode",
           "lambda:UpdateFunctionConfiguration",
+          "lambda:InvokeFunction"
         ]
         Resource = "arn:aws:lambda:*:${var.account_id}:function:${var.project_name}-${var.environment}-*"
       }
