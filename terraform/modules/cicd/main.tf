@@ -96,6 +96,27 @@ resource "aws_iam_role_policy" "github_actions_ssm" {
         Resource = [
           "arn:aws:ssm:*:*:parameter/workshop/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:AddTagsToResource",
+          "ssm:DeleteParameter",
+          "ssm:GetParameter",
+          "ssm:GetParameters",
+          "ssm:ListTagsForResource",
+          "ssm:PutParameter",
+          "ssm:RemoveTagsFromResource"
+        ]
+        Resource = [
+          "arn:aws:ssm:*:*:parameter/lectureclip/*"
+        ]
+      },
+      {
+        # DescribeParameters is account-scoped — AWS does not accept parameter path ARNs as resource
+        Effect   = "Allow"
+        Action   = ["ssm:DescribeParameters"]
+        Resource = ["*"]
       }
     ]
   })
@@ -196,6 +217,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
           "ec2:AssociateSubnetCidrBlock",
           "ec2:AttachInternetGateway",
           "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:AuthorizeSecurityGroupIngress",
           "ec2:CreateInternetGateway",
           "ec2:CreateNatGateway",
           "ec2:CreateRoute",
@@ -292,6 +314,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Action = [
           "kms:CreateAlias",
           "kms:CreateKey",
+          "kms:Decrypt",
           "kms:DeleteAlias",
           "kms:DescribeKey",
           "kms:EnableKeyRotation",
@@ -403,6 +426,41 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
           "states:UntagResource",
           "states:UpdateStateMachine",
           "states:ValidateStateMachineDefinition"
+        ]
+        Resource = ["*"]
+      },
+      {
+        Sid    = "VisualEditor12"
+        Effect = "Allow"
+        Action = [
+          "rds:AddTagsToResource",
+          "rds:CreateDBCluster",
+          "rds:CreateDBInstance",
+          "rds:CreateDBSubnetGroup",
+          "rds:DeleteDBCluster",
+          "rds:DeleteDBInstance",
+          "rds:DeleteDBSubnetGroup",
+          "rds:DescribeDBClusters",
+          "rds:DescribeDBEngineVersions",
+          "rds:DescribeDBInstanceAutomatedBackups",
+          "rds:DescribeDBInstances",
+          "rds:DescribeDBParameterGroups",
+          "rds:DescribeDBSubnetGroups",
+          "rds:DescribeGlobalClusters",
+          "rds:ListTagsForResource",
+          "rds:ModifyDBCluster",
+          "rds:ModifyDBInstance",
+          "rds:ModifyDBSubnetGroup",
+          "rds:RemoveTagsFromResource"
+        ]
+        Resource = ["*"]
+      },
+      {
+        Sid    = "VisualEditor13"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:CreateSecret",
+          "secretsmanager:TagResource"
         ]
         Resource = ["*"]
       }
