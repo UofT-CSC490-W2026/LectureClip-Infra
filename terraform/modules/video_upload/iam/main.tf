@@ -3,12 +3,16 @@
 # Manages IAM roles and policies
 # ============================================================================
 
+locals {
+  name_prefix = "${var.project_name}-${var.environment}"
+}
+
 # ============================================================================
 # LAMBDA EXECUTION ROLE
 # ============================================================================
 
 resource "aws_iam_role" "video_upload_lambda" {
-  name = "${var.project_name}-video-upload-lambda"
+  name = "${local.name_prefix}-video-upload-lambda"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -24,14 +28,14 @@ resource "aws_iam_role" "video_upload_lambda" {
   })
 
   tags = {
-    Name        = "${var.project_name}-video-upload-lambda"
+    Name        = "${local.name_prefix}-video-upload-lambda"
     Environment = var.environment
   }
 }
 
 # S3 permissions — direct upload (presigned URL) + multipart upload lifecycle
 resource "aws_iam_role_policy" "video_upload_lambda_s3" {
-  name = "${var.project_name}-video-upload-lambda-s3"
+  name = "${local.name_prefix}-video-upload-lambda-s3"
   role = aws_iam_role.video_upload_lambda.id
 
   policy = jsonencode({
@@ -57,7 +61,7 @@ resource "aws_iam_role_policy" "video_upload_lambda_s3" {
 
 # KMS permissions — required to generate presigned URLs for KMS-encrypted buckets
 resource "aws_iam_role_policy" "video_upload_lambda_kms" {
-  name = "${var.project_name}-video-upload-lambda-kms"
+  name = "${local.name_prefix}-video-upload-lambda-kms"
   role = aws_iam_role.video_upload_lambda.id
 
   policy = jsonencode({

@@ -18,6 +18,10 @@ crash.*.log
 tfplan
 tfplan.*
 
+# Exception. include the environment specific tfvars file for the example environment, which is used in the example workflow
+!terraform/environments/dev.tfvars
+!terraform/environments/prod.tfvars
+
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
 override.tf

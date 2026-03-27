@@ -7,15 +7,15 @@
 # ============================================================================
 
 resource "aws_api_gateway_rest_api" "main" {
-  name        = "${var.project_name}-api"
-  description = "LectureClip video upload API"
+  name        = "${var.project_name}-${var.environment}-api"
+  description = "LectureClip video upload API (${var.environment})"
 
   endpoint_configuration {
     types = ["REGIONAL"]
   }
 
   tags = {
-    Name        = "${var.project_name}-api"
+    Name        = "${var.project_name}-${var.environment}-api"
     Environment = var.environment
   }
 }
@@ -282,48 +282,5 @@ resource "aws_lambda_permission" "multipart_complete" {
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }
 
-# ============================================================================
-# DEPLOYMENT & STAGE
-# ============================================================================
-
-resource "aws_api_gateway_deployment" "main" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-
-  triggers = {
-    redeployment = sha1(jsonencode([
-      aws_api_gateway_resource.uploads.id,
-      aws_api_gateway_method.uploads_post.id,
-      aws_api_gateway_integration.uploads_post.id,
-      aws_api_gateway_resource.multipart_init.id,
-      aws_api_gateway_method.multipart_init_post.id,
-      aws_api_gateway_integration.multipart_init_post.id,
-      aws_api_gateway_resource.multipart_complete.id,
-      aws_api_gateway_method.multipart_complete_post.id,
-      aws_api_gateway_integration.multipart_complete_post.id,
-    ]))
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  depends_on = [
-    aws_api_gateway_integration.uploads_post,
-    aws_api_gateway_integration.uploads_options,
-    aws_api_gateway_integration.multipart_init_post,
-    aws_api_gateway_integration.multipart_init_options,
-    aws_api_gateway_integration.multipart_complete_post,
-    aws_api_gateway_integration.multipart_complete_options,
-  ]
-}
-
-resource "aws_api_gateway_stage" "main" {
-  deployment_id = aws_api_gateway_deployment.main.id
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  stage_name    = var.environment
-
-  tags = {
-    Name        = "${var.project_name}-${var.environment}"
-    Environment = var.environment
-  }
-}
+# Deployment and stage are managed in the root module so that the retrieval
+# module's /query resources can be included in a single deployment trigger.

@@ -11,17 +11,27 @@ scripts/bootstrap.sh  # Bootstrap the S3 + DynamoDB Terraform backend (run once)
 ```
 
 ### Terraform Workflow
-All commands run from `terraform/`:
+All commands run from `terraform/`. Use environment-specific var and backend files:
 ```bash
-terraform init        # Initialize with remote S3 backend
+# Dev environment
+terraform init -backend-config="environments/backend-dev.hcl"
+terraform plan  -var-file="environments/dev.tfvars"
+terraform apply -var-file="environments/dev.tfvars"
+
+# Prod environment
+terraform init -backend-config="environments/backend-prod.hcl" -reconfigure
+terraform plan  -var-file="environments/prod.tfvars"
+terraform apply -var-file="environments/prod.tfvars"
+
+# Common commands
 terraform init -backend=false  # Init without backend (for CI validation)
-terraform plan
-terraform apply
-terraform destroy
+terraform destroy -var-file="environments/<env>.tfvars"
 terraform output      # View all outputs (API endpoints, KMS key ID)
 terraform fmt -recursive  # Auto-format all .tf files
 terraform validate
 ```
+
+**Deploy order**: Provision `prod` first — it creates the shared GitHub OIDC provider (`create_oidc_provider = true`). Dev then looks up the existing provider (`create_oidc_provider = false`).
 
 ### Linting & Security
 ```bash
@@ -35,25 +45,24 @@ pre-commit run --all-files  # Run all pre-commit hooks
 ### Infrastructure Overview
 LectureClip is a video upload platform. This repo provisions all AWS infrastructure via Terraform. Lambda function **code** is deployed separately by the application CI repo (`LectureClip-App`) using `aws lambda update-function-code`; Terraform only provisions the function shells with placeholder code and uses `ignore_changes = [source_code_hash]` to avoid overwriting CI deployments.
 
-### Module Dependency Graph
-```
-Root Module (terraform/main.tf)
-├── kms       — Customer-managed KMS key for S3 + CloudWatch encryption
-├── networking — VPC with public/private subnets, NAT Gateway, Lambda security group
-├── storage    — User videos S3 bucket (KMS-encrypted, depends on kms)
-├── iam        — Lambda execution role + GitHub Actions OIDC role (depends on kms, storage)
-├── lambda     — 3 Lambda functions + Lambda artifacts S3 bucket (depends on iam, storage, networking)
-└── api_gateway — REST API with 3 endpoints (depends on lambda)
-```
-
 ### API Endpoints (outputs)
 - `POST /uploads` — generates a pre-signed PUT URL for direct single-file upload
 - `POST /multipart/init` — initializes a multipart upload, returns pre-signed part URLs
 - `POST /multipart/complete` — assembles uploaded parts into a final S3 object
 
+### Environments
+Two isolated environments share the same AWS account but have separate Terraform state and independently-named resources:
+
+| Environment | Branch   | State key                       | Deploy trigger        |
+|-------------|----------|---------------------------------|-----------------------|
+| `dev`       | develop  | `lectureclip/dev/terraform.tfstate`  | push to `develop`     |
+| `prod`      | main     | `lectureclip/prod/terraform.tfstate` | push to `main`        |
+
+All resource names follow `lectureclip-<env>-<resource>` (e.g., `lectureclip-dev-video-upload`).
+
 ### Remote State Backend
 - **S3 bucket**: `757242163795-workshop-tf-state` (region: `ca-central-1`)
-- **State key**: `lectureclip/terraform.tfstate`
+- **State keys**: `lectureclip/dev/terraform.tfstate` and `lectureclip/prod/terraform.tfstate`
 - **Lock**: native S3 lock (`use_lockfile = true`, no DynamoDB needed with TF ≥ 1.6)
 
 ### Key Design Decisions
@@ -63,8 +72,8 @@ Root Module (terraform/main.tf)
 - **Terraform version**: `~>1.6` (pinned); AWS provider `~>5.0`
 
 ### CI/CD (GitHub Actions)
-- **on-push.yaml**: Runs on pushes to `main`/`develop` — terraform fmt check, validate, tflint, checkov security scan, YAML/markdown lint
-- **on-pull-request.yaml**: Runs `terraform plan` with AWS OIDC auth and posts results as PR comments; also runs cfn-guard rules. Contains placeholder sections meant to be completed as part of a workshop.
+- **on-push.yaml**: Runs quality checks (fmt, validate, tflint, checkov) then deploys — `develop` → dev, `main` → prod.
+- **on-pull-request.yaml**: Runs `terraform plan` against prod state and posts results as a PR comment; also runs cfn-guard rules.
 
 ### Pre-commit Hooks
 Configured in `.pre-commit-config.yaml`: `terraform_fmt`, `terraform_validate`, `terraform_tflint`, trailing whitespace, end-of-file fixer, YAML/JSON checks, large file detection, private key detection.
@@ -73,5 +82,7 @@ Configured in `.pre-commit-config.yaml`: `terraform_fmt`, `terraform_validate`, 
 Enforces: snake_case naming, typed variables, documented variables/outputs, pinned module sources, standard module structure, no unused declarations.
 
 ### GitHub Actions Variables Required
-- `AWS_REGION`, `AWS_ACCOUNT_ID`, `AWS_ROLE_TO_ASSUME` (repo variables)
+- `AWS_REGION`, `AWS_ACCOUNT_ID` (repo variables)
+- `AWS_ROLE_TO_ASSUME_DEV` — ARN of `lectureclip-dev-github-actions` role (repo variable)
+- `AWS_ROLE_TO_ASSUME_PROD` — ARN of `lectureclip-prod-github-actions` role (repo variable)
 - `GITHUB_TOKEN` (automatic)

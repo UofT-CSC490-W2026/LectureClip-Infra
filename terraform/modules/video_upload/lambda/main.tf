@@ -5,6 +5,10 @@
 # overwrite CI deployments (ignore_changes = [source_code_hash]).
 # ============================================================================
 
+locals {
+  name_prefix = "${var.project_name}-${var.environment}"
+}
+
 data "archive_file" "lambda_placeholder" {
   type = "zip"
   source {
@@ -22,7 +26,7 @@ data "archive_file" "lambda_placeholder" {
 resource "aws_lambda_function" "video_upload" {
   filename         = data.archive_file.lambda_placeholder.output_path
   source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
-  function_name    = "${var.project_name}-video-upload"
+  function_name    = "${local.name_prefix}-video-upload"
   role             = var.lambda_role_arn
   handler          = "index.handler"
   runtime          = "python3.13"
@@ -45,7 +49,7 @@ resource "aws_lambda_function" "video_upload" {
   }
 
   tags = {
-    Name        = "${var.project_name}-video-upload"
+    Name        = "${local.name_prefix}-video-upload"
     Environment = var.environment
   }
 }
@@ -54,7 +58,7 @@ resource "aws_lambda_function" "video_upload" {
 resource "aws_lambda_function" "multipart_init" {
   filename         = data.archive_file.lambda_placeholder.output_path
   source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
-  function_name    = "${var.project_name}-multipart-init"
+  function_name    = "${local.name_prefix}-multipart-init"
   role             = var.lambda_role_arn
   handler          = "index.handler"
   runtime          = "python3.13"
@@ -77,7 +81,7 @@ resource "aws_lambda_function" "multipart_init" {
   }
 
   tags = {
-    Name        = "${var.project_name}-multipart-init"
+    Name        = "${local.name_prefix}-multipart-init"
     Environment = var.environment
   }
 }
@@ -86,7 +90,7 @@ resource "aws_lambda_function" "multipart_init" {
 resource "aws_lambda_function" "multipart_complete" {
   filename         = data.archive_file.lambda_placeholder.output_path
   source_code_hash = data.archive_file.lambda_placeholder.output_base64sha256
-  function_name    = "${var.project_name}-multipart-complete"
+  function_name    = "${local.name_prefix}-multipart-complete"
   role             = var.lambda_role_arn
   handler          = "index.handler"
   runtime          = "python3.13"
@@ -109,7 +113,7 @@ resource "aws_lambda_function" "multipart_complete" {
   }
 
   tags = {
-    Name        = "${var.project_name}-multipart-complete"
+    Name        = "${local.name_prefix}-multipart-complete"
     Environment = var.environment
   }
 }
@@ -123,7 +127,7 @@ resource "aws_cloudwatch_log_group" "video_upload" {
   retention_in_days = 14
 
   tags = {
-    Name        = "${var.project_name}-video-upload-logs"
+    Name        = "${local.name_prefix}-video-upload-logs"
     Environment = var.environment
   }
 }
@@ -133,7 +137,7 @@ resource "aws_cloudwatch_log_group" "multipart_init" {
   retention_in_days = 14
 
   tags = {
-    Name        = "${var.project_name}-multipart-init-logs"
+    Name        = "${local.name_prefix}-multipart-init-logs"
     Environment = var.environment
   }
 }
@@ -143,7 +147,7 @@ resource "aws_cloudwatch_log_group" "multipart_complete" {
   retention_in_days = 14
 
   tags = {
-    Name        = "${var.project_name}-multipart-complete-logs"
+    Name        = "${local.name_prefix}-multipart-complete-logs"
     Environment = var.environment
   }
 }

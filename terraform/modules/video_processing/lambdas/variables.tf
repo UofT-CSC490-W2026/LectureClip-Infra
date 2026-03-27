@@ -36,3 +36,18 @@ variable "transcriptions_table_arn" {
   description = "ARN of the DynamoDB table used to track Transcribe job states"
   type        = string
 }
+
+variable "aurora_cluster_arn" {
+  description = "ARN of the Aurora cluster — passed to process-results Lambda for RDS Data API calls"
+  type        = string
+}
+
+variable "aurora_secret_arn" {
+  description = "Secrets Manager ARN for Aurora master credentials — used by process-results via Data API"
+  type        = string
+}
+
+variable "aurora_db_name" {
+  description = "Name of the Aurora database"
+  type        = string
+}

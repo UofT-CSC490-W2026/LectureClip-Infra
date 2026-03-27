@@ -25,3 +25,9 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "create_oidc_provider" {
+  description = "Whether to create the GitHub OIDC provider. Set to true for the first environment deployed (prod), false for subsequent environments (dev) to avoid duplicate provider errors."
+  type        = bool
+  default     = false
+}

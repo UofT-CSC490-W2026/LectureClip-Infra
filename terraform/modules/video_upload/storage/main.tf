@@ -5,10 +5,10 @@
 
 # User videos bucket
 resource "aws_s3_bucket" "user_videos" {
-  bucket = "${var.project_name}-user-videos-${var.account_id}"
+  bucket = "${var.project_name}-${var.environment}-user-videos-${var.account_id}"
 
   tags = {
-    Name        = "${var.project_name}-user-videos"
+    Name        = "${var.project_name}-${var.environment}-user-videos"
     Environment = var.environment
     Purpose     = "User video uploads"
   }
@@ -61,10 +61,10 @@ resource "aws_s3_bucket_public_access_block" "user_videos" {
 
 # SNS topic for S3 events
 resource "aws_sns_topic" "user_videos_events" {
-  name = "${var.project_name}-user-videos-events"
+  name = "${var.project_name}-${var.environment}-user-videos-events"
 
   tags = {
-    Name        = "${var.project_name}-user-videos-events"
+    Name        = "${var.project_name}-${var.environment}-user-videos-events"
     Environment = var.environment
   }
 }

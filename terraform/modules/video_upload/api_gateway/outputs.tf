@@ -1,43 +1,58 @@
 # ============================================================================
 # API GATEWAY MODULE - OUTPUTS
+# Stage-dependent outputs (base_url, endpoints) live in the root module
+# because the deployment and stage are managed there.
 # ============================================================================
 
 output "api_id" {
-  description = "ID of the API Gateway"
+  description = "ID of the REST API"
   value       = aws_api_gateway_rest_api.main.id
 }
 
 output "api_arn" {
-  description = "ARN of the API Gateway"
+  description = "ARN of the REST API"
   value       = aws_api_gateway_rest_api.main.arn
 }
 
 output "api_execution_arn" {
-  description = "Execution ARN of the API Gateway"
+  description = "Execution ARN used for lambda:InvokeFunction permissions"
   value       = aws_api_gateway_rest_api.main.execution_arn
 }
 
-output "api_stage_name" {
-  description = "Name of the API Gateway stage"
-  value       = aws_api_gateway_stage.main.stage_name
+output "root_resource_id" {
+  description = "Root resource ID — parent for top-level path parts"
+  value       = aws_api_gateway_rest_api.main.root_resource_id
 }
 
-output "base_url" {
-  description = "Base invoke URL for the API stage"
-  value       = aws_api_gateway_stage.main.invoke_url
+# Integration IDs are consumed by the root module to build the deployment
+# trigger hash that forces a redeployment whenever any route changes.
+
+output "uploads_post_integration_id" {
+  description = "Integration ID for POST /uploads — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.uploads_post.id
 }
 
-output "uploads_endpoint" {
-  description = "Full URL for the POST /uploads endpoint"
-  value       = "${aws_api_gateway_stage.main.invoke_url}/uploads"
+output "uploads_options_integration_id" {
+  description = "Integration ID for OPTIONS /uploads — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.uploads_options.id
 }
 
-output "multipart_init_endpoint" {
-  description = "Full URL for the POST /multipart/init endpoint"
-  value       = "${aws_api_gateway_stage.main.invoke_url}/multipart/init"
+output "multipart_init_post_integration_id" {
+  description = "Integration ID for POST /multipart/init — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.multipart_init_post.id
 }
 
-output "multipart_complete_endpoint" {
-  description = "Full URL for the POST /multipart/complete endpoint"
-  value       = "${aws_api_gateway_stage.main.invoke_url}/multipart/complete"
+output "multipart_init_options_integration_id" {
+  description = "Integration ID for OPTIONS /multipart/init — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.multipart_init_options.id
+}
+
+output "multipart_complete_post_integration_id" {
+  description = "Integration ID for POST /multipart/complete — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.multipart_complete_post.id
+}
+
+output "multipart_complete_options_integration_id" {
+  description = "Integration ID for OPTIONS /multipart/complete — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.multipart_complete_options.id
 }
