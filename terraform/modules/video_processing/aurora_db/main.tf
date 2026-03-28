@@ -201,6 +201,7 @@ resource "aws_lambda_function" "db_migrate" {
   timeout          = 300
   filename         = data.archive_file.placeholder.output_path
   source_code_hash = data.archive_file.placeholder.output_base64sha256
+  kms_key_arn      = var.kms_key_arn
 
   environment {
     variables = {
