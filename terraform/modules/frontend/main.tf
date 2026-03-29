@@ -64,7 +64,6 @@ resource "aws_amplify_app" "frontend" {
           phases:
             preBuild:
               commands:
-                - nvm use 20
                 - npm install --cache .npm --prefer-offline
             build:
               commands:
@@ -81,6 +80,9 @@ resource "aws_amplify_app" "frontend" {
 
   environment_variables = {
     VITE_API_BASE_URL = var.api_base_url
+    # Pins Node.js at the Amplify platform level — installed once and cached
+    # by Amplify's build infrastructure, not re-run on every build.
+    _LIVE_UPDATES = jsonencode([{ name = "Node.js version", pkg = "node", type = "nvm", version = "22.19.0" }])
   }
 
   enable_auto_branch_creation = false
