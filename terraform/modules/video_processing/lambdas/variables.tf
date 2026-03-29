@@ -51,3 +51,13 @@ variable "aurora_db_name" {
   description = "Name of the Aurora database"
   type        = string
 }
+
+variable "embedding_model_id" {
+  description = "Bedrock foundation model ID used for embeddings in process-results"
+  type        = string
+}
+
+variable "embedding_dim" {
+  description = "Dimensionality of the embedding vectors produced by the embedding model"
+  type        = number
+}

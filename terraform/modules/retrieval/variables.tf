@@ -51,3 +51,13 @@ variable "rest_api_root_resource_id" {
   description = "Root resource ID of the REST API — parent for the /query path part"
   type        = string
 }
+
+variable "embedding_model_id" {
+  description = "Bedrock foundation model ID used to embed queries in query-segments"
+  type        = string
+}
+
+variable "embedding_dim" {
+  description = "Dimensionality of the embedding vectors produced by the embedding model"
+  type        = number
+}

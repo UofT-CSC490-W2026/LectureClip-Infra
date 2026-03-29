@@ -168,14 +168,41 @@ module "video_processing_lambdas" {
   aurora_cluster_arn        = module.aurora_db.cluster_arn
   aurora_secret_arn         = module.aurora_db.secret_arn
   aurora_db_name            = module.aurora_db.db_name
+  embedding_model_id        = var.embedding_model_id
+  embedding_dim             = var.embedding_dim
 
   depends_on = [module.kms, module.storage, module.video_processing_database, module.aurora_db]
 }
 
 # ============================================================================
+# VIDEO PROCESSING — CONTAINER MODULE
+# Segment-frame extraction: ECR repo, ECS Fargate cluster, task definition,
+# IAM roles, and security group for the waitForTaskToken ECS step.
+# ============================================================================
+module "video_processing_container" {
+  source = "./modules/video_processing/container"
+
+  project_name           = var.project_name
+  environment            = var.environment
+  aws_region             = data.aws_region.current.name
+  vpc_id                 = module.networking.vpc_id
+  private_subnet_ids     = module.networking.private_subnet_ids
+  user_videos_bucket_id  = module.storage.user_videos_bucket_id
+  user_videos_bucket_arn = module.storage.user_videos_bucket_arn
+  kms_key_arn            = module.kms.key_arn
+  embedding_model_id     = var.embedding_model_id
+  embedding_dim          = var.embedding_dim
+
+  depends_on = [module.networking, module.kms, module.storage]
+}
+
+# ============================================================================
 # VIDEO PROCESSING — STEP FUNCTION WORKFLOW MODULE
-# Audio transcription workflow: SNS → s3-trigger → Step Functions →
-# start-transcribe → Amazon Transcribe → EventBridge → process-transcribe -> process-results
+# Transcription → frame extraction → embedding insertion pipeline:
+#   SNS → s3-trigger → Step Functions → start-transcribe (waitForTaskToken)
+#   → Amazon Transcribe → EventBridge → process-transcribe → SendTaskSuccess
+#   → ExtractFrames ECS task (waitForTaskToken) → SendTaskSuccess
+#   → process-results Lambda
 # ============================================================================
 module "video_processing_step_functions" {
   source = "./modules/video_processing/step_function_workflow"
@@ -187,8 +214,14 @@ module "video_processing_step_functions" {
   process_transcribe_function_name = module.video_processing_lambdas.process_transcribe_function_name
   process_results_lambda_arn       = module.video_processing_lambdas.process_results_arn
   user_videos_sns_topic_arn        = module.storage.user_videos_sns_topic_arn
+  ecs_cluster_arn                  = module.video_processing_container.ecs_cluster_arn
+  ecs_task_definition_arn          = module.video_processing_container.task_definition_arn
+  ecs_subnet_ids                   = module.video_processing_container.private_subnet_ids
+  ecs_security_group_id            = module.video_processing_container.task_security_group_id
+  ecs_task_execution_role_arn      = module.video_processing_container.task_execution_role_arn
+  ecs_task_role_arn                = module.video_processing_container.task_role_arn
 
-  depends_on = [module.video_processing_lambdas]
+  depends_on = [module.video_processing_lambdas, module.video_processing_container]
 }
 
 # ============================================================================
@@ -224,6 +257,8 @@ module "retrieval" {
   aurora_db_name            = module.aurora_db.db_name
   kms_key_arn               = module.kms.key_arn
   bucket_name               = module.storage.user_videos_bucket_id
+  embedding_model_id        = var.embedding_model_id
+  embedding_dim             = var.embedding_dim
   rest_api_id               = module.api_gateway.api_id
   rest_api_execution_arn    = module.api_gateway.api_execution_arn
   rest_api_root_resource_id = module.api_gateway.root_resource_id

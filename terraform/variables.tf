@@ -31,3 +31,15 @@ variable "create_oidc_provider" {
   type        = bool
   default     = false
 }
+
+variable "embedding_model_id" {
+  description = "Bedrock foundation model ID used for all embeddings (frame extraction, query encoding)"
+  type        = string
+  default     = "amazon.titan-embed-image-v1"
+}
+
+variable "embedding_dim" {
+  description = "Dimensionality of the embedding vectors produced by the embedding model"
+  type        = number
+  default     = 1024
+}

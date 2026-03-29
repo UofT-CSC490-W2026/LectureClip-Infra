@@ -12,3 +12,5 @@ account_id           = "757242163795"
 project_name         = "lectureclip"
 environment          = "prod"
 create_oidc_provider = true
+embedding_model_id   = "amazon.titan-embed-image-v1"
+embedding_dim        = 1024

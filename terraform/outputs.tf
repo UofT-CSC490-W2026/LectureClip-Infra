@@ -61,3 +61,23 @@ output "transcriptions_table_name" {
   description = "DynamoDB table that tracks Amazon Transcribe jobs"
   value       = module.video_processing_database.transcriptions_table_name
 }
+
+output "aurora_cluster_arn" {
+  description = "Amazon Elastic cluster ARN"
+  value       = module.aurora_db.cluster_arn
+}
+
+output "aurora_secret_arn" {
+  description = "ARN of the Secrets Manager secret holding Aurora credentials"
+  value       = module.aurora_db.secret_arn
+}
+
+output "database_name" {
+  description = "Name of the Aurora database"
+  value       = module.aurora_db.db_name
+}
+
+output "ecr_repository_url" {
+  description = "ECR repository URL for the segment-frame-extractor container image"
+  value       = module.video_processing_container.ecr_repository_url
+}
