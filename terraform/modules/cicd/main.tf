@@ -463,6 +463,43 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
           "secretsmanager:TagResource"
         ]
         Resource = ["*"]
+      },
+      {
+        Sid    = "VisualEditor14"
+        Effect = "Allow"
+        Action = [
+          "amplify:CreateApp",
+          "amplify:DeleteApp",
+          "amplify:GetApp",
+          "amplify:ListApps",
+          "amplify:TagResource",
+          "amplify:UntagResource",
+          "amplify:UpdateApp",
+          "amplify:CreateBranch",
+          "amplify:DeleteBranch",
+          "amplify:GetBranch",
+          "amplify:ListBranches",
+          "amplify:UpdateBranch"
+        ]
+        Resource = ["*"]
+      },
+      {
+        Sid    = "VisualEditor15"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+          "iam:ListRolePolicies",
+          "iam:TagRole",
+          "iam:UntagRole",
+          "iam:UpdateRoleDescription"
+        ]
+        Resource = "arn:aws:iam::${var.account_id}:role/${var.project_name}-${var.environment}-amplify-service-role"
       }
     ]
   })

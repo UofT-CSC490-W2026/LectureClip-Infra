@@ -1,7 +1,7 @@
 # ============================================================================
 # API GATEWAY MODULE - MAIN
 # REST API with three endpoints matching the reference architecture:
-#   POST /uploads            → video-upload Lambda (direct pre-signed URL)
+#   POST /upload            → video-upload Lambda (direct pre-signed URL)
 #   POST /multipart/init     → multipart-init Lambda
 #   POST /multipart/complete → multipart-complete Lambda
 # ============================================================================
@@ -21,42 +21,42 @@ resource "aws_api_gateway_rest_api" "main" {
 }
 
 # ============================================================================
-# /uploads — direct pre-signed URL upload
+# /upload — direct pre-signed URL upload
 # ============================================================================
 
-resource "aws_api_gateway_resource" "uploads" {
+resource "aws_api_gateway_resource" "upload" {
   rest_api_id = aws_api_gateway_rest_api.main.id
   parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "uploads"
+  path_part   = "upload"
 }
 
-resource "aws_api_gateway_method" "uploads_post" {
+resource "aws_api_gateway_method" "upload_post" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.uploads.id
+  resource_id   = aws_api_gateway_resource.upload.id
   http_method   = "POST"
   authorization = "NONE"
 }
 
-resource "aws_api_gateway_integration" "uploads_post" {
+resource "aws_api_gateway_integration" "upload_post" {
   rest_api_id             = aws_api_gateway_rest_api.main.id
-  resource_id             = aws_api_gateway_resource.uploads.id
-  http_method             = aws_api_gateway_method.uploads_post.http_method
+  resource_id             = aws_api_gateway_resource.upload.id
+  http_method             = aws_api_gateway_method.upload_post.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
   uri                     = var.video_upload_invoke_arn
 }
 
-resource "aws_api_gateway_method" "uploads_options" {
+resource "aws_api_gateway_method" "upload_options" {
   rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.uploads.id
+  resource_id   = aws_api_gateway_resource.upload.id
   http_method   = "OPTIONS"
   authorization = "NONE"
 }
 
-resource "aws_api_gateway_integration" "uploads_options" {
+resource "aws_api_gateway_integration" "upload_options" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.uploads.id
-  http_method = aws_api_gateway_method.uploads_options.http_method
+  resource_id = aws_api_gateway_resource.upload.id
+  http_method = aws_api_gateway_method.upload_options.http_method
   type        = "MOCK"
 
   request_templates = {
@@ -64,10 +64,10 @@ resource "aws_api_gateway_integration" "uploads_options" {
   }
 }
 
-resource "aws_api_gateway_method_response" "uploads_options" {
+resource "aws_api_gateway_method_response" "upload_options" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.uploads.id
-  http_method = aws_api_gateway_method.uploads_options.http_method
+  resource_id = aws_api_gateway_resource.upload.id
+  http_method = aws_api_gateway_method.upload_options.http_method
   status_code = "200"
 
   response_parameters = {
@@ -81,11 +81,11 @@ resource "aws_api_gateway_method_response" "uploads_options" {
   }
 }
 
-resource "aws_api_gateway_integration_response" "uploads_options" {
+resource "aws_api_gateway_integration_response" "upload_options" {
   rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.uploads.id
-  http_method = aws_api_gateway_method.uploads_options.http_method
-  status_code = aws_api_gateway_method_response.uploads_options.status_code
+  resource_id = aws_api_gateway_resource.upload.id
+  http_method = aws_api_gateway_method.upload_options.http_method
+  status_code = aws_api_gateway_method_response.upload_options.status_code
 
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
@@ -93,11 +93,11 @@ resource "aws_api_gateway_integration_response" "uploads_options" {
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
 
-  depends_on = [aws_api_gateway_integration.uploads_options]
+  depends_on = [aws_api_gateway_integration.upload_options]
 }
 
-resource "aws_lambda_permission" "uploads" {
-  statement_id  = "AllowAPIGatewayInvokeUploads"
+resource "aws_lambda_permission" "upload" {
+  statement_id  = "AllowAPIGatewayInvokeupload"
   action        = "lambda:InvokeFunction"
   function_name = var.video_upload_function_name
   principal     = "apigateway.amazonaws.com"

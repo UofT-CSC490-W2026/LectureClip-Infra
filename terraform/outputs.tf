@@ -17,9 +17,9 @@ output "api_base_url" {
   value       = aws_api_gateway_stage.main.invoke_url
 }
 
-output "uploads_endpoint" {
+output "upload_endpoint" {
   description = "POST /uploads — generate a pre-signed URL for direct video upload"
-  value       = "${aws_api_gateway_stage.main.invoke_url}/uploads"
+  value       = "${aws_api_gateway_stage.main.invoke_url}/upload"
 }
 
 output "multipart_init_endpoint" {
@@ -35,6 +35,16 @@ output "multipart_complete_endpoint" {
 output "query_endpoint" {
   description = "POST /query — semantic search over lecture transcript segments"
   value       = "${aws_api_gateway_stage.main.invoke_url}/query"
+}
+
+output "frontend_url" {
+  description = "HTTPS URL of the deployed Amplify frontend branch"
+  value       = module.frontend.branch_url
+}
+
+output "frontend_app_id" {
+  description = "Amplify app ID (needed for npx ampx pipeline-deploy)"
+  value       = module.frontend.app_id
 }
 
 output "kms_key_id" {

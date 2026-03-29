@@ -193,7 +193,7 @@ module "video_processing_step_functions" {
 
 # ============================================================================
 # API GATEWAY MODULE
-# REST API + /uploads, /multipart/init, /multipart/complete resources.
+# REST API + /upload, /multipart/init, /multipart/complete resources.
 # Deployment and stage are created below so that the retrieval module's
 # /query resources can be included in the same deployment trigger.
 # ============================================================================
@@ -232,8 +232,8 @@ module "retrieval" {
 }
 
 # ============================================================================
-# API GATEWAY DEPLOYMENT & STAGE
-# Single deployment so all routes (/uploads, /multipart/*, /query) are
+# API GATEWAY DEPLOYMENT & STAGE1
+# Single deployment so all routes (/upload, /multipart/*, /query) are
 # included in one trigger hash and deployed atomically.
 # NOTE: if migrating an existing environment, run:
 #   terraform state mv module.api_gateway.aws_api_gateway_deployment.main \
@@ -246,8 +246,8 @@ resource "aws_api_gateway_deployment" "main" {
 
   triggers = {
     redeployment = sha1(jsonencode([
-      module.api_gateway.uploads_post_integration_id,
-      module.api_gateway.uploads_options_integration_id,
+      module.api_gateway.upload_post_integration_id,
+      module.api_gateway.upload_options_integration_id,
       module.api_gateway.multipart_init_post_integration_id,
       module.api_gateway.multipart_init_options_integration_id,
       module.api_gateway.multipart_complete_post_integration_id,
@@ -262,6 +262,27 @@ resource "aws_api_gateway_deployment" "main" {
   }
 
   depends_on = [module.api_gateway, module.retrieval]
+}
+
+# ============================================================================
+# FRONTEND MODULE
+# AWS Amplify hosting for the React/Vite frontend in LectureClip-App/frontend.
+# GitHub token is read from SSM at /lectureclip/github-access-token.
+# ============================================================================
+data "aws_ssm_parameter" "github_access_token" {
+  name            = "/lectureclip/github-access-token"
+  with_decryption = true
+}
+
+module "frontend" {
+  source = "./modules/frontend"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  github_access_token = data.aws_ssm_parameter.github_access_token.value
+  api_base_url        = aws_api_gateway_stage.main.invoke_url
+
+  depends_on = [aws_api_gateway_stage.main]
 }
 
 resource "aws_api_gateway_stage" "main" {
