@@ -280,6 +280,24 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Sid    = "VisualEditor5"
         Effect = "Allow"
         Action = [
+          "cognito-idp:CreateUserPool",
+          "cognito-idp:CreateUserPoolClient",
+          "cognito-idp:DeleteUserPool",
+          "cognito-idp:DeleteUserPoolClient",
+          "cognito-idp:DescribeUserPool",
+          "cognito-idp:DescribeUserPoolClient",
+          "cognito-idp:GetUserPoolMfaConfig",
+          "cognito-idp:TagResource",
+          "cognito-idp:UntagResource",
+          "cognito-idp:UpdateUserPool",
+          "cognito-idp:UpdateUserPoolClient"
+        ]
+        Resource = ["*"]
+      },
+      {
+        Sid    = "VisualEditor6"
+        Effect = "Allow"
+        Action = [
           "iam:AddClientIDToOpenIDConnectProvider",
           "iam:AttachRolePolicy",
           "iam:CreateOpenIDConnectProvider",
@@ -309,7 +327,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor6"
+        Sid    = "VisualEditor7"
         Effect = "Allow"
         Action = [
           "kms:CreateAlias",
@@ -332,7 +350,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor7"
+        Sid    = "VisualEditor8"
         Effect = "Allow"
         Action = [
           "lambda:AddPermission",
@@ -349,7 +367,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor8"
+        Sid    = "VisualEditor9"
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
@@ -365,7 +383,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor9"
+        Sid    = "VisualEditor10"
         Effect = "Allow"
         Action = [
           "s3:CreateBucket",
@@ -400,7 +418,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor10"
+        Sid    = "VisualEditor11"
         Effect = "Allow"
         Action = [
           "sns:CreateTopic",
@@ -414,7 +432,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor11"
+        Sid    = "VisualEditor12"
         Effect = "Allow"
         Action = [
           "states:CreateStateMachine",
@@ -430,7 +448,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor12"
+        Sid    = "VisualEditor13"
         Effect = "Allow"
         Action = [
           "rds:AddTagsToResource",
@@ -456,7 +474,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor13"
+        Sid    = "VisualEditor14"
         Effect = "Allow"
         Action = [
           "secretsmanager:CreateSecret",
@@ -465,7 +483,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor14"
+        Sid    = "VisualEditor15"
         Effect = "Allow"
         Action = [
           "amplify:CreateApp",
@@ -484,7 +502,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor15"
+        Sid    = "VisualEditor16"
         Effect = "Allow"
         Action = [
           "iam:CreateRole",
