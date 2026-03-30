@@ -6,7 +6,10 @@
 
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
-  branch_name = var.environment == "prod" ? "main" : "develop"
+  branch_name = lookup({
+    prod = "main"
+    eval = "eval"
+  }, var.environment, "develop")
 }
 
 # ============================================================================

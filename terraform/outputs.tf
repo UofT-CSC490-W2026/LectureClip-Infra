@@ -37,6 +37,11 @@ output "query_endpoint" {
   value       = "${aws_api_gateway_stage.main.invoke_url}/query"
 }
 
+output "query_info_endpoint" {
+  description = "POST /query-info — semantic search returning segment id, text, and similarity"
+  value       = "${aws_api_gateway_stage.main.invoke_url}/query-info"
+}
+
 output "frontend_url" {
   description = "HTTPS URL of the deployed Amplify frontend branch"
   value       = module.frontend.branch_url

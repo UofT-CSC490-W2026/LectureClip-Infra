@@ -289,6 +289,8 @@ resource "aws_api_gateway_deployment" "main" {
       module.api_gateway.multipart_complete_options_integration_id,
       module.retrieval.query_post_integration_id,
       module.retrieval.query_options_integration_id,
+      module.retrieval.query_info_post_integration_id,
+      module.retrieval.query_info_options_integration_id,
     ]))
   }
 

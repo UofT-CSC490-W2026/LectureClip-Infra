@@ -2,7 +2,7 @@
 # ENVIRONMENT: dev
 # Branch: develop
 # Usage:
-#   terraform init -backend-config="environments/backend-dev.hcl"
+#   terraform init -backend-config="environments/backend-dev.hcl" -reconfigure
 #   terraform plan  -var-file="environments/dev.tfvars"
 #   terraform apply -var-file="environments/dev.tfvars"
 # ============================================================================
