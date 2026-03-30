@@ -22,3 +22,13 @@ variable "api_base_url" {
   description = "Base URL of the API Gateway stage, injected as VITE_API_BASE_URL"
   type        = string
 }
+
+variable "cognito_user_pool_id" {
+  description = "Cognito user pool identifier"
+  type        = string
+}
+
+variable "cognito_user_pool_client_id" {
+  description = "Cognito user pool client identifier"
+  type        = string
+}

@@ -82,10 +82,13 @@ resource "aws_amplify_app" "frontend" {
   EOT
 
   environment_variables = {
-    VITE_API_BASE_URL = var.api_base_url
+    VITE_API_BASE_URL        = var.api_base_url
+    VITE_USER_POOL_ID        = var.cognito_user_pool_id
+    VITE_USER_POOL_CLIENT_ID = var.cognito_user_pool_client_id
     # Pins Node.js at the Amplify platform level — installed once and cached
     # by Amplify's build infrastructure, not re-run on every build.
     _LIVE_UPDATES = jsonencode([{ name = "Node.js version", pkg = "node", type = "nvm", version = "22.19.0" }])
+
   }
 
   enable_auto_branch_creation = false

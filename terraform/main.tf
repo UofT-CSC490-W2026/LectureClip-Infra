@@ -334,10 +334,12 @@ data "aws_ssm_parameter" "github_access_token" {
 module "frontend" {
   source = "./modules/frontend"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  github_access_token = data.aws_ssm_parameter.github_access_token.value
-  api_base_url        = aws_api_gateway_stage.main.invoke_url
+  project_name                = var.project_name
+  environment                 = var.environment
+  github_access_token         = data.aws_ssm_parameter.github_access_token.value
+  api_base_url                = aws_api_gateway_stage.main.invoke_url
+  cognito_user_pool_client_id = module.auth.user_pool_client_id
+  cognito_user_pool_id        = module.auth.user_pool_id
 
   depends_on = [aws_api_gateway_stage.main]
 }
