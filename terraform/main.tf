@@ -247,6 +247,16 @@ module "api_gateway" {
 
 # ============================================================================
 # RETRIEVAL MODULE
+# ============================================================================
+# AUTH MODULE — Cognito User Pool + SPA client
+# ============================================================================
+module "auth" {
+  source = "./modules/auth"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
 # query-segments Lambda + IAM + POST /query API Gateway route
 # ============================================================================
 module "retrieval" {
@@ -297,6 +307,10 @@ resource "aws_api_gateway_deployment" "main" {
       module.retrieval.query_info_options_integration_id,
       module.retrieval.chat_post_integration_id,
       module.retrieval.chat_options_integration_id,
+      module.retrieval.register_user_post_integration_id,
+      module.retrieval.register_user_options_integration_id,
+      module.retrieval.lectures_get_integration_id,
+      module.retrieval.lectures_options_integration_id,
     ]))
   }
 

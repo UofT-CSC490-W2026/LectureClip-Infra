@@ -658,3 +658,382 @@ resource "aws_lambda_permission" "chat_apigw" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${var.rest_api_execution_arn}/*/*"
 }
+
+# ============================================================================
+# IAM ROLE — register-user
+# Only needs RDS Data API + Secrets Manager (no Bedrock, no S3)
+# ============================================================================
+
+resource "aws_iam_role" "register_user" {
+  name = "${local.name_prefix}-register-user-lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${local.name_prefix}-register-user-lambda"
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "register_user_basic" {
+  role       = aws_iam_role.register_user.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "register_user" {
+  name = "${local.name_prefix}-register-user-lambda"
+  role = aws_iam_role.register_user.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "RDSDataAPI"
+        Effect   = "Allow"
+        Action   = ["rds-data:ExecuteStatement"]
+        Resource = var.aurora_cluster_arn
+      },
+      {
+        Sid      = "AuroraSecretAccess"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = var.aurora_secret_arn
+      },
+      {
+        Sid      = "KMSDecryptSecret"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = var.kms_key_arn
+      }
+    ]
+  })
+}
+
+# ============================================================================
+# LAMBDA FUNCTION — register-user
+# ============================================================================
+
+resource "aws_lambda_function" "register_user" {
+  function_name    = "${local.name_prefix}-register-user"
+  role             = aws_iam_role.register_user.arn
+  handler          = "index.handler"
+  runtime          = "python3.13"
+  timeout          = 10
+  filename         = data.archive_file.placeholder.output_path
+  source_code_hash = data.archive_file.placeholder.output_base64sha256
+
+  environment {
+    variables = {
+      AURORA_CLUSTER_ARN = var.aurora_cluster_arn
+      AURORA_SECRET_ARN  = var.aurora_secret_arn
+      AURORA_DB_NAME     = var.aurora_db_name
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [source_code_hash]
+  }
+
+  tags = {
+    Name        = "${local.name_prefix}-register-user"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "register_user" {
+  name              = "/aws/lambda/${aws_lambda_function.register_user.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# ============================================================================
+# API GATEWAY — POST /users/register
+# ============================================================================
+
+resource "aws_api_gateway_resource" "users" {
+  rest_api_id = var.rest_api_id
+  parent_id   = var.rest_api_root_resource_id
+  path_part   = "users"
+}
+
+resource "aws_api_gateway_resource" "users_register" {
+  rest_api_id = var.rest_api_id
+  parent_id   = aws_api_gateway_resource.users.id
+  path_part   = "register"
+}
+
+resource "aws_api_gateway_method" "register_user_post" {
+  rest_api_id   = var.rest_api_id
+  resource_id   = aws_api_gateway_resource.users_register.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "register_user_post" {
+  rest_api_id             = var.rest_api_id
+  resource_id             = aws_api_gateway_resource.users_register.id
+  http_method             = aws_api_gateway_method.register_user_post.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.register_user.invoke_arn
+}
+
+resource "aws_api_gateway_method" "register_user_options" {
+  rest_api_id   = var.rest_api_id
+  resource_id   = aws_api_gateway_resource.users_register.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "register_user_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.users_register.id
+  http_method = aws_api_gateway_method.register_user_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "register_user_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.users_register.id
+  http_method = aws_api_gateway_method.register_user_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+
+  response_models = {
+    "application/json" = "Empty"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "register_user_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.users_register.id
+  http_method = aws_api_gateway_method.register_user_options.http_method
+  status_code = aws_api_gateway_method_response.register_user_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+
+  depends_on = [aws_api_gateway_integration.register_user_options]
+}
+
+resource "aws_lambda_permission" "register_user_apigw" {
+  statement_id  = "AllowAPIGatewayInvokeRegisterUser"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.register_user.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${var.rest_api_execution_arn}/*/*"
+}
+
+# ============================================================================
+# IAM ROLE — list-lectures
+# RDS Data API + S3 GetObject (for presigned playback URLs) + Secrets + KMS
+# ============================================================================
+
+resource "aws_iam_role" "list_lectures" {
+  name = "${local.name_prefix}-list-lectures-lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${local.name_prefix}-list-lectures-lambda"
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "list_lectures_basic" {
+  role       = aws_iam_role.list_lectures.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "list_lectures" {
+  name = "${local.name_prefix}-list-lectures-lambda"
+  role = aws_iam_role.list_lectures.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "RDSDataAPI"
+        Effect   = "Allow"
+        Action   = ["rds-data:ExecuteStatement"]
+        Resource = var.aurora_cluster_arn
+      },
+      {
+        Sid      = "AuroraSecretAccess"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = var.aurora_secret_arn
+      },
+      {
+        Sid      = "KMSDecryptSecret"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = var.kms_key_arn
+      },
+      {
+        Sid      = "S3PresignedGet"
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = "arn:aws:s3:::${var.bucket_name}/*"
+      }
+    ]
+  })
+}
+
+# ============================================================================
+# LAMBDA FUNCTION — list-lectures
+# ============================================================================
+
+resource "aws_lambda_function" "list_lectures" {
+  function_name    = "${local.name_prefix}-list-lectures"
+  role             = aws_iam_role.list_lectures.arn
+  handler          = "index.handler"
+  runtime          = "python3.13"
+  timeout          = 15
+  filename         = data.archive_file.placeholder.output_path
+  source_code_hash = data.archive_file.placeholder.output_base64sha256
+
+  environment {
+    variables = {
+      AURORA_CLUSTER_ARN = var.aurora_cluster_arn
+      AURORA_SECRET_ARN  = var.aurora_secret_arn
+      AURORA_DB_NAME     = var.aurora_db_name
+      BUCKET_NAME        = var.bucket_name
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [source_code_hash]
+  }
+
+  tags = {
+    Name        = "${local.name_prefix}-list-lectures"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "list_lectures" {
+  name              = "/aws/lambda/${aws_lambda_function.list_lectures.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# ============================================================================
+# API GATEWAY — GET /lectures
+# ============================================================================
+
+resource "aws_api_gateway_resource" "lectures" {
+  rest_api_id = var.rest_api_id
+  parent_id   = var.rest_api_root_resource_id
+  path_part   = "lectures"
+}
+
+resource "aws_api_gateway_method" "lectures_get" {
+  rest_api_id   = var.rest_api_id
+  resource_id   = aws_api_gateway_resource.lectures.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "lectures_get" {
+  rest_api_id             = var.rest_api_id
+  resource_id             = aws_api_gateway_resource.lectures.id
+  http_method             = aws_api_gateway_method.lectures_get.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.list_lectures.invoke_arn
+}
+
+resource "aws_api_gateway_method" "lectures_options" {
+  rest_api_id   = var.rest_api_id
+  resource_id   = aws_api_gateway_resource.lectures.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "lectures_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.lectures.id
+  http_method = aws_api_gateway_method.lectures_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "lectures_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.lectures.id
+  http_method = aws_api_gateway_method.lectures_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+
+  response_models = {
+    "application/json" = "Empty"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "lectures_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.lectures.id
+  http_method = aws_api_gateway_method.lectures_options.http_method
+  status_code = aws_api_gateway_method_response.lectures_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+
+  depends_on = [aws_api_gateway_integration.lectures_options]
+}
+
+resource "aws_lambda_permission" "lectures_apigw" {
+  statement_id  = "AllowAPIGatewayInvokeListLectures"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.list_lectures.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${var.rest_api_execution_arn}/*/*"
+}

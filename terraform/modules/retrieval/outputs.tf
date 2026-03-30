@@ -59,3 +59,23 @@ output "chat_options_integration_id" {
   description = "Integration ID for OPTIONS /chat — consumed by the root module's deployment trigger"
   value       = aws_api_gateway_integration.chat_options.id
 }
+
+output "register_user_post_integration_id" {
+  description = "Integration ID for POST /users/register"
+  value       = aws_api_gateway_integration.register_user_post.id
+}
+
+output "register_user_options_integration_id" {
+  description = "Integration ID for OPTIONS /users/register"
+  value       = aws_api_gateway_integration.register_user_options.id
+}
+
+output "lectures_get_integration_id" {
+  description = "Integration ID for GET /lectures"
+  value       = aws_api_gateway_integration.lectures_get.id
+}
+
+output "lectures_options_integration_id" {
+  description = "Integration ID for OPTIONS /lectures"
+  value       = aws_api_gateway_integration.lectures_options.id
+}

@@ -86,3 +86,13 @@ output "ecr_repository_url" {
   description = "ECR repository URL for the segment-frame-extractor container image"
   value       = module.video_processing_container.ecr_repository_url
 }
+
+output "cognito_user_pool_id" {
+  description = "Cognito User Pool ID — set as VITE_USER_POOL_ID in the frontend build"
+  value       = module.auth.user_pool_id
+}
+
+output "cognito_user_pool_client_id" {
+  description = "Cognito App Client ID — set as VITE_USER_POOL_CLIENT_ID in the frontend build"
+  value       = module.auth.user_pool_client_id
+}
