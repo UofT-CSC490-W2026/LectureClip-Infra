@@ -170,6 +170,7 @@ module "video_processing_lambdas" {
   aurora_db_name            = module.aurora_db.db_name
   embedding_model_id        = var.embedding_model_id
   embedding_dim             = var.embedding_dim
+  modal_embedding_url       = var.modal_embedding_url
 
   depends_on = [module.kms, module.storage, module.video_processing_database, module.aurora_db]
 }
@@ -192,6 +193,7 @@ module "video_processing_container" {
   kms_key_arn            = module.kms.key_arn
   embedding_model_id     = var.embedding_model_id
   embedding_dim          = var.embedding_dim
+  modal_embedding_url    = var.modal_embedding_url
 
   depends_on = [module.networking, module.kms, module.storage]
 }
@@ -259,6 +261,7 @@ module "retrieval" {
   bucket_name               = module.storage.user_videos_bucket_id
   embedding_model_id        = var.embedding_model_id
   embedding_dim             = var.embedding_dim
+  modal_embedding_url       = var.modal_embedding_url
   rest_api_id               = module.api_gateway.api_id
   rest_api_execution_arn    = module.api_gateway.api_execution_arn
   rest_api_root_resource_id = module.api_gateway.root_resource_id

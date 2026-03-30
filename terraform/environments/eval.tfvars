@@ -14,3 +14,4 @@ environment          = "eval"
 create_oidc_provider = false
 embedding_model_id   = "amazon.titan-embed-image-v1"
 embedding_dim        = 1024
+modal_embedding_url  = ""

@@ -259,7 +259,8 @@ resource "aws_ecs_task_definition" "segment_frame_extractor" {
       environment = [
         { name = "TRANSCRIPTS_BUCKET", value = var.user_videos_bucket_id },
         { name = "FRAME_EMBEDDING_MODEL_ID", value = var.embedding_model_id },
-        { name = "EMBEDDING_DIM", value = tostring(var.embedding_dim) }
+        { name = "EMBEDDING_DIM", value = tostring(var.embedding_dim) },
+        { name = "MODAL_EMBEDDING_URL", value = var.modal_embedding_url }
       ]
 
       logConfiguration = {

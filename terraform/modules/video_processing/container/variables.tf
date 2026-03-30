@@ -51,3 +51,9 @@ variable "embedding_dim" {
   description = "Dimensionality of the embedding vectors produced by the embedding model"
   type        = number
 }
+
+variable "modal_embedding_url" {
+  description = "Modal web endpoint URL for self-hosted jina-clip-v2 embeddings. Empty string when using Bedrock."
+  type        = string
+  default     = ""
+}

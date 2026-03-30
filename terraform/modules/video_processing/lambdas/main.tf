@@ -254,6 +254,7 @@ resource "aws_lambda_function" "process_results" {
       EMBEDDING_MODEL_ID       = var.embedding_model_id
       EMBEDDING_DIM            = tostring(var.embedding_dim)
       FRAME_EMBEDDING_MODEL_ID = var.embedding_model_id
+      MODAL_EMBEDDING_URL      = var.modal_embedding_url
       AURORA_CLUSTER_ARN       = var.aurora_cluster_arn
       AURORA_SECRET_ARN        = var.aurora_secret_arn
       AURORA_DB_NAME           = var.aurora_db_name

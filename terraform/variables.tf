@@ -43,3 +43,9 @@ variable "embedding_dim" {
   type        = number
   default     = 1024
 }
+
+variable "modal_embedding_url" {
+  description = "Modal web endpoint URL for self-hosted jina-clip-v2 embeddings. Required when embedding_model_id=modal-jina-clip-v2, empty string otherwise."
+  type        = string
+  default     = ""
+}

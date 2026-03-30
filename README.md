@@ -4,6 +4,27 @@ AWS infrastructure for the LectureClip platform, provisioned with Terraform. Thi
 
 Lambda function **code** is owned and deployed by the application CI repo (`LectureClip-App`) via `aws lambda update-function-code`. Terraform provisions the function shells and does not overwrite application deployments.
 
+## Embedding Model Configuration
+
+The embedding model is configured once at the root level and flows through to all lambdas and the ECS container. Set in the environment-specific `tfvars` file:
+
+| Variable | Description | Default |
+|---|---|---|
+| `embedding_model_id` | Model ID for all embeddings | `amazon.titan-embed-image-v1` |
+| `embedding_dim` | Embedding vector dimensionality | `1024` |
+| `modal_embedding_url` | Modal endpoint URL (required when using `modal-jina-clip-v2`) | `""` |
+
+**Supported model IDs:**
+- `amazon.titan-embed-image-v1` — AWS Bedrock Titan
+- `modal-jina-clip-v2` — self-hosted jina-clip-v2 on Modal (set `modal_embedding_url` to the deployed endpoint)
+
+Example (`environments/eval.tfvars`):
+```hcl
+embedding_model_id  = "modal-jina-clip-v2"
+embedding_dim       = 1024
+modal_embedding_url = "https://<workspace>--lectureclip-embeddings-embedder-embed.modal.run"
+```
+
 ### Terraform Modules
 
 | Module | Resources |

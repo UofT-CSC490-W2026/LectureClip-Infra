@@ -112,12 +112,13 @@ resource "aws_lambda_function" "query_segments" {
 
   environment {
     variables = {
-      EMBEDDING_MODEL_ID = var.embedding_model_id
-      EMBEDDING_DIM      = tostring(var.embedding_dim)
-      AURORA_CLUSTER_ARN = var.aurora_cluster_arn
-      AURORA_SECRET_ARN  = var.aurora_secret_arn
-      AURORA_DB_NAME     = var.aurora_db_name
-      BUCKET_NAME        = var.bucket_name
+      EMBEDDING_MODEL_ID  = var.embedding_model_id
+      EMBEDDING_DIM       = tostring(var.embedding_dim)
+      MODAL_EMBEDDING_URL = var.modal_embedding_url
+      AURORA_CLUSTER_ARN  = var.aurora_cluster_arn
+      AURORA_SECRET_ARN   = var.aurora_secret_arn
+      AURORA_DB_NAME      = var.aurora_db_name
+      BUCKET_NAME         = var.bucket_name
     }
   }
 
@@ -312,12 +313,13 @@ resource "aws_lambda_function" "query_segments_info" {
 
   environment {
     variables = {
-      EMBEDDING_MODEL_ID = var.embedding_model_id
-      EMBEDDING_DIM      = tostring(var.embedding_dim)
-      AURORA_CLUSTER_ARN = var.aurora_cluster_arn
-      AURORA_SECRET_ARN  = var.aurora_secret_arn
-      AURORA_DB_NAME     = var.aurora_db_name
-      BUCKET_NAME        = var.bucket_name
+      EMBEDDING_MODEL_ID  = var.embedding_model_id
+      EMBEDDING_DIM       = tostring(var.embedding_dim)
+      MODAL_EMBEDDING_URL = var.modal_embedding_url
+      AURORA_CLUSTER_ARN  = var.aurora_cluster_arn
+      AURORA_SECRET_ARN   = var.aurora_secret_arn
+      AURORA_DB_NAME      = var.aurora_db_name
+      BUCKET_NAME         = var.bucket_name
     }
   }
 
