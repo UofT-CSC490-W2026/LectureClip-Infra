@@ -280,6 +280,24 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Sid    = "VisualEditor5"
         Effect = "Allow"
         Action = [
+          "cognito-idp:CreateUserPool",
+          "cognito-idp:CreateUserPoolClient",
+          "cognito-idp:DeleteUserPool",
+          "cognito-idp:DeleteUserPoolClient",
+          "cognito-idp:DescribeUserPool",
+          "cognito-idp:DescribeUserPoolClient",
+          "cognito-idp:GetUserPoolMfaConfig",
+          "cognito-idp:TagResource",
+          "cognito-idp:UntagResource",
+          "cognito-idp:UpdateUserPool",
+          "cognito-idp:UpdateUserPoolClient"
+        ]
+        Resource = ["*"]
+      },
+      {
+        Sid    = "VisualEditor6"
+        Effect = "Allow"
+        Action = [
           "iam:AddClientIDToOpenIDConnectProvider",
           "iam:AttachRolePolicy",
           "iam:CreateOpenIDConnectProvider",
@@ -309,7 +327,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor6"
+        Sid    = "VisualEditor7"
         Effect = "Allow"
         Action = [
           "kms:CreateAlias",
@@ -332,7 +350,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor7"
+        Sid    = "VisualEditor8"
         Effect = "Allow"
         Action = [
           "lambda:AddPermission",
@@ -349,7 +367,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor8"
+        Sid    = "VisualEditor9"
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
@@ -365,7 +383,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor9"
+        Sid    = "VisualEditor10"
         Effect = "Allow"
         Action = [
           "s3:CreateBucket",
@@ -400,7 +418,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor10"
+        Sid    = "VisualEditor11"
         Effect = "Allow"
         Action = [
           "sns:CreateTopic",
@@ -414,7 +432,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor11"
+        Sid    = "VisualEditor12"
         Effect = "Allow"
         Action = [
           "states:CreateStateMachine",
@@ -430,7 +448,7 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor12"
+        Sid    = "VisualEditor13"
         Effect = "Allow"
         Action = [
           "rds:AddTagsToResource",
@@ -456,13 +474,88 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
         Resource = ["*"]
       },
       {
-        Sid    = "VisualEditor13"
+        Sid    = "VisualEditor14"
         Effect = "Allow"
         Action = [
           "secretsmanager:CreateSecret",
           "secretsmanager:TagResource"
         ]
         Resource = ["*"]
+      },
+      {
+        Sid    = "VisualEditor15"
+        Effect = "Allow"
+        Action = [
+          "amplify:CreateApp",
+          "amplify:DeleteApp",
+          "amplify:GetApp",
+          "amplify:ListApps",
+          "amplify:TagResource",
+          "amplify:UntagResource",
+          "amplify:UpdateApp",
+          "amplify:CreateBranch",
+          "amplify:DeleteBranch",
+          "amplify:GetBranch",
+          "amplify:ListBranches",
+          "amplify:UpdateBranch"
+        ]
+        Resource = ["*"]
+      },
+      {
+        Sid    = "VisualEditor16"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+          "iam:ListRolePolicies",
+          "iam:TagRole",
+          "iam:UntagRole",
+          "iam:UpdateRoleDescription"
+        ]
+        Resource = "arn:aws:iam::${var.account_id}:role/${var.project_name}-${var.environment}-amplify-service-role"
+      },
+      {
+        Sid    = "ECRManage"
+        Effect = "Allow"
+        Action = [
+          "ecr:CreateRepository",
+          "ecr:DeleteRepository",
+          "ecr:DescribeRepositories",
+          "ecr:GetLifecyclePolicy",
+          "ecr:GetRepositoryPolicy",
+          "ecr:ListTagsForResource",
+          "ecr:PutLifecyclePolicy",
+          "ecr:PutImageScanningConfiguration",
+          "ecr:PutImageTagMutability",
+          "ecr:SetRepositoryPolicy",
+          "ecr:TagResource",
+          "ecr:UntagResource"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "ECSManage"
+        Effect = "Allow"
+        Action = [
+          "ecs:CreateCluster",
+          "ecs:DeleteCluster",
+          "ecs:DescribeClusters",
+          "ecs:ListClusters",
+          "ecs:PutClusterCapacityProviders",
+          "ecs:TagResource",
+          "ecs:UntagResource",
+          "ecs:UpdateCluster",
+          "ecs:DeregisterTaskDefinition",
+          "ecs:DescribeTaskDefinition",
+          "ecs:ListTaskDefinitions",
+          "ecs:RegisterTaskDefinition"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -521,6 +614,41 @@ resource "aws_iam_role_policy" "github_actions_app_lambda_deploy" {
           "lambda:InvokeFunction"
         ]
         Resource = "arn:aws:lambda:*:${var.account_id}:function:${var.project_name}-${var.environment}-*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "github_actions_app_ecr_push" {
+  name = "${local.name_prefix}-github-actions-app-ecr-push"
+  role = aws_iam_role.github_actions_app.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # GetAuthorizationToken is account-scoped — no resource ARN available
+        Sid      = "ECRAuth"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        # Scoped to ECR repositories that follow the project naming convention
+        Sid    = "ECRPush"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:CompleteLayerUpload",
+          "ecr:InitiateLayerUpload",
+          "ecr:PutImage",
+          "ecr:UploadLayerPart",
+          "ecr:BatchGetImage",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:DescribeRepositories",
+          "ecr:ListImages"
+        ]
+        Resource = "arn:aws:ecr:*:${var.account_id}:repository/${var.project_name}-${var.environment}-*"
       }
     ]
   })

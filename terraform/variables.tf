@@ -31,3 +31,27 @@ variable "create_oidc_provider" {
   type        = bool
   default     = false
 }
+
+variable "embedding_model_id" {
+  description = "Bedrock foundation model ID used for all embeddings (frame extraction, query encoding)"
+  type        = string
+  default     = "amazon.titan-embed-image-v1"
+}
+
+variable "embedding_dim" {
+  description = "Dimensionality of the embedding vectors produced by the embedding model"
+  type        = number
+  default     = 1024
+}
+
+variable "modal_embedding_url" {
+  description = "Modal web endpoint URL for self-hosted jina-clip-v2 embeddings. Required when embedding_model_id=modal-jina-clip-v2, empty string otherwise."
+  type        = string
+  default     = ""
+}
+
+variable "chat_model_id" {
+  description = "Bedrock model ID for the chat lambda (Claude via Converse API)"
+  type        = string
+  default     = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+}

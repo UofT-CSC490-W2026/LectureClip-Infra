@@ -27,14 +27,14 @@ output "root_resource_id" {
 # Integration IDs are consumed by the root module to build the deployment
 # trigger hash that forces a redeployment whenever any route changes.
 
-output "uploads_post_integration_id" {
-  description = "Integration ID for POST /uploads — consumed by the root module's deployment trigger"
-  value       = aws_api_gateway_integration.uploads_post.id
+output "upload_post_integration_id" {
+  description = "Integration ID for POST /upload — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.upload_post.id
 }
 
-output "uploads_options_integration_id" {
-  description = "Integration ID for OPTIONS /uploads — consumed by the root module's deployment trigger"
-  value       = aws_api_gateway_integration.uploads_options.id
+output "upload_options_integration_id" {
+  description = "Integration ID for OPTIONS /upload — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.upload_options.id
 }
 
 output "multipart_init_post_integration_id" {

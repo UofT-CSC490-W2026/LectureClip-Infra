@@ -36,3 +36,33 @@ variable "process_results_lambda_arn" {
   description = "ARN of the process-results Lambda function invoked after transcription completes"
   type        = string
 }
+
+variable "ecs_cluster_arn" {
+  description = "ARN of the ECS cluster used to run the segment-frame extraction task"
+  type        = string
+}
+
+variable "ecs_task_definition_arn" {
+  description = "ARN of the ECS task definition (family:revision) for the segment-frame extractor"
+  type        = string
+}
+
+variable "ecs_subnet_ids" {
+  description = "Private subnet IDs in which the ECS Fargate task will run"
+  type        = list(string)
+}
+
+variable "ecs_security_group_id" {
+  description = "Security group ID attached to the ECS task network interface"
+  type        = string
+}
+
+variable "ecs_task_execution_role_arn" {
+  description = "ARN of the ECS task execution role — Step Functions must PassRole to ECS"
+  type        = string
+}
+
+variable "ecs_task_role_arn" {
+  description = "ARN of the ECS task role — Step Functions must PassRole to ECS"
+  type        = string
+}

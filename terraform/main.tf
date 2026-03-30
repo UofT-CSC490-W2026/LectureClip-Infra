@@ -168,14 +168,43 @@ module "video_processing_lambdas" {
   aurora_cluster_arn        = module.aurora_db.cluster_arn
   aurora_secret_arn         = module.aurora_db.secret_arn
   aurora_db_name            = module.aurora_db.db_name
+  embedding_model_id        = var.embedding_model_id
+  embedding_dim             = var.embedding_dim
+  modal_embedding_url       = var.modal_embedding_url
 
   depends_on = [module.kms, module.storage, module.video_processing_database, module.aurora_db]
 }
 
 # ============================================================================
+# VIDEO PROCESSING — CONTAINER MODULE
+# Segment-frame extraction: ECR repo, ECS Fargate cluster, task definition,
+# IAM roles, and security group for the waitForTaskToken ECS step.
+# ============================================================================
+module "video_processing_container" {
+  source = "./modules/video_processing/container"
+
+  project_name           = var.project_name
+  environment            = var.environment
+  aws_region             = data.aws_region.current.name
+  vpc_id                 = module.networking.vpc_id
+  private_subnet_ids     = module.networking.private_subnet_ids
+  user_videos_bucket_id  = module.storage.user_videos_bucket_id
+  user_videos_bucket_arn = module.storage.user_videos_bucket_arn
+  kms_key_arn            = module.kms.key_arn
+  embedding_model_id     = var.embedding_model_id
+  embedding_dim          = var.embedding_dim
+  modal_embedding_url    = var.modal_embedding_url
+
+  depends_on = [module.networking, module.kms, module.storage]
+}
+
+# ============================================================================
 # VIDEO PROCESSING — STEP FUNCTION WORKFLOW MODULE
-# Audio transcription workflow: SNS → s3-trigger → Step Functions →
-# start-transcribe → Amazon Transcribe → EventBridge → process-transcribe -> process-results
+# Transcription → frame extraction → embedding insertion pipeline:
+#   SNS → s3-trigger → Step Functions → start-transcribe (waitForTaskToken)
+#   → Amazon Transcribe → EventBridge → process-transcribe → SendTaskSuccess
+#   → ExtractFrames ECS task (waitForTaskToken) → SendTaskSuccess
+#   → process-results Lambda
 # ============================================================================
 module "video_processing_step_functions" {
   source = "./modules/video_processing/step_function_workflow"
@@ -187,13 +216,19 @@ module "video_processing_step_functions" {
   process_transcribe_function_name = module.video_processing_lambdas.process_transcribe_function_name
   process_results_lambda_arn       = module.video_processing_lambdas.process_results_arn
   user_videos_sns_topic_arn        = module.storage.user_videos_sns_topic_arn
+  ecs_cluster_arn                  = module.video_processing_container.ecs_cluster_arn
+  ecs_task_definition_arn          = module.video_processing_container.task_definition_arn
+  ecs_subnet_ids                   = module.video_processing_container.private_subnet_ids
+  ecs_security_group_id            = module.video_processing_container.task_security_group_id
+  ecs_task_execution_role_arn      = module.video_processing_container.task_execution_role_arn
+  ecs_task_role_arn                = module.video_processing_container.task_role_arn
 
-  depends_on = [module.video_processing_lambdas]
+  depends_on = [module.video_processing_lambdas, module.video_processing_container]
 }
 
 # ============================================================================
 # API GATEWAY MODULE
-# REST API + /uploads, /multipart/init, /multipart/complete resources.
+# REST API + /upload, /multipart/init, /multipart/complete resources.
 # Deployment and stage are created below so that the retrieval module's
 # /query resources can be included in the same deployment trigger.
 # ============================================================================
@@ -212,6 +247,16 @@ module "api_gateway" {
 
 # ============================================================================
 # RETRIEVAL MODULE
+# ============================================================================
+# AUTH MODULE — Cognito User Pool + SPA client
+# ============================================================================
+module "auth" {
+  source = "./modules/auth"
+
+  project_name = var.project_name
+  environment  = var.environment
+}
+
 # query-segments Lambda + IAM + POST /query API Gateway route
 # ============================================================================
 module "retrieval" {
@@ -224,6 +269,10 @@ module "retrieval" {
   aurora_db_name            = module.aurora_db.db_name
   kms_key_arn               = module.kms.key_arn
   bucket_name               = module.storage.user_videos_bucket_id
+  embedding_model_id        = var.embedding_model_id
+  embedding_dim             = var.embedding_dim
+  modal_embedding_url       = var.modal_embedding_url
+  chat_model_id             = var.chat_model_id
   rest_api_id               = module.api_gateway.api_id
   rest_api_execution_arn    = module.api_gateway.api_execution_arn
   rest_api_root_resource_id = module.api_gateway.root_resource_id
@@ -232,8 +281,8 @@ module "retrieval" {
 }
 
 # ============================================================================
-# API GATEWAY DEPLOYMENT & STAGE
-# Single deployment so all routes (/uploads, /multipart/*, /query) are
+# API GATEWAY DEPLOYMENT & STAGE1
+# Single deployment so all routes (/upload, /multipart/*, /query) are
 # included in one trigger hash and deployed atomically.
 # NOTE: if migrating an existing environment, run:
 #   terraform state mv module.api_gateway.aws_api_gateway_deployment.main \
@@ -246,14 +295,22 @@ resource "aws_api_gateway_deployment" "main" {
 
   triggers = {
     redeployment = sha1(jsonencode([
-      module.api_gateway.uploads_post_integration_id,
-      module.api_gateway.uploads_options_integration_id,
+      module.api_gateway.upload_post_integration_id,
+      module.api_gateway.upload_options_integration_id,
       module.api_gateway.multipart_init_post_integration_id,
       module.api_gateway.multipart_init_options_integration_id,
       module.api_gateway.multipart_complete_post_integration_id,
       module.api_gateway.multipart_complete_options_integration_id,
       module.retrieval.query_post_integration_id,
       module.retrieval.query_options_integration_id,
+      module.retrieval.query_info_post_integration_id,
+      module.retrieval.query_info_options_integration_id,
+      module.retrieval.chat_post_integration_id,
+      module.retrieval.chat_options_integration_id,
+      module.retrieval.register_user_post_integration_id,
+      module.retrieval.register_user_options_integration_id,
+      module.retrieval.lectures_get_integration_id,
+      module.retrieval.lectures_options_integration_id,
     ]))
   }
 
@@ -262,6 +319,27 @@ resource "aws_api_gateway_deployment" "main" {
   }
 
   depends_on = [module.api_gateway, module.retrieval]
+}
+
+# ============================================================================
+# FRONTEND MODULE
+# AWS Amplify hosting for the React/Vite frontend in LectureClip-App/frontend.
+# GitHub token is read from SSM at /lectureclip/github-access-token.
+# ============================================================================
+data "aws_ssm_parameter" "github_access_token" {
+  name            = "/lectureclip/github-access-token"
+  with_decryption = true
+}
+
+module "frontend" {
+  source = "./modules/frontend"
+
+  project_name        = var.project_name
+  environment         = var.environment
+  github_access_token = data.aws_ssm_parameter.github_access_token.value
+  api_base_url        = aws_api_gateway_stage.main.invoke_url
+
+  depends_on = [aws_api_gateway_stage.main]
 }
 
 resource "aws_api_gateway_stage" "main" {

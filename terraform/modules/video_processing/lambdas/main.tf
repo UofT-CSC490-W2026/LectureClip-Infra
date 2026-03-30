@@ -214,7 +214,7 @@ resource "aws_iam_role_policy" "process_results_lambda" {
         Sid      = "BedrockInvokeModel"
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:*::foundation-model/amazon.titan-embed-text-v2:0"
+        Resource = "arn:aws:bedrock:*::foundation-model/${var.embedding_model_id}"
       },
       {
         Sid      = "RDSDataAPI"
@@ -244,17 +244,20 @@ resource "aws_lambda_function" "process_results" {
   role             = aws_iam_role.process_results_lambda.arn
   handler          = "index.handler"
   runtime          = "python3.13"
+  memory_size      = 1024
   timeout          = 900
   filename         = data.archive_file.placeholder.output_path
   source_code_hash = data.archive_file.placeholder.output_base64sha256
 
   environment {
     variables = {
-      EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
-      EMBEDDING_DIM      = "1024"
-      AURORA_CLUSTER_ARN = var.aurora_cluster_arn
-      AURORA_SECRET_ARN  = var.aurora_secret_arn
-      AURORA_DB_NAME     = var.aurora_db_name
+      EMBEDDING_MODEL_ID       = var.embedding_model_id
+      EMBEDDING_DIM            = tostring(var.embedding_dim)
+      FRAME_EMBEDDING_MODEL_ID = var.embedding_model_id
+      MODAL_EMBEDDING_URL      = var.modal_embedding_url
+      AURORA_CLUSTER_ARN       = var.aurora_cluster_arn
+      AURORA_SECRET_ARN        = var.aurora_secret_arn
+      AURORA_DB_NAME           = var.aurora_db_name
     }
   }
 

@@ -1,7 +1,7 @@
 # ============================================================================
-# BACKEND CONFIG: prod
+# BACKEND CONFIG: eval
 # Usage:
-#   terraform init -backend-config="environments/backend-prod.hcl" -reconfigure
+#   terraform init -backend-config="environments/backend-eval.hcl" -reconfigure
 # ============================================================================
 
-key = "lectureclip/prod/terraform.tfstate"
+key = "lectureclip/eval/terraform.tfstate"

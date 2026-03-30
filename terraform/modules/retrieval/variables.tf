@@ -51,3 +51,25 @@ variable "rest_api_root_resource_id" {
   description = "Root resource ID of the REST API — parent for the /query path part"
   type        = string
 }
+
+variable "embedding_model_id" {
+  description = "Bedrock foundation model ID used to embed queries in query-segments"
+  type        = string
+}
+
+variable "embedding_dim" {
+  description = "Dimensionality of the embedding vectors produced by the embedding model"
+  type        = number
+}
+
+variable "modal_embedding_url" {
+  description = "Modal web endpoint URL for self-hosted jina-clip-v2 embeddings. Empty string when using Bedrock."
+  type        = string
+  default     = ""
+}
+
+variable "chat_model_id" {
+  description = "Bedrock model ID for the chat lambda (Claude via Converse API)"
+  type        = string
+  default     = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+}

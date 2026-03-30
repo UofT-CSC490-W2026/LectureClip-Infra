@@ -50,6 +50,27 @@ resource "aws_iam_role_policy" "sfn_video_processing" {
         Resource = [var.start_transcribe_lambda_arn, var.process_results_lambda_arn]
       },
       {
+        # Run the segment-frame extraction ECS Fargate task.
+        # The task definition ARN includes the revision; allow all revisions
+        # of this family so infra changes don't require a policy update.
+        Sid      = "ECSRunTask"
+        Effect   = "Allow"
+        Action   = ["ecs:RunTask"]
+        Resource = replace(var.ecs_task_definition_arn, "/:[0-9]+$/", ":*")
+      },
+      {
+        # Step Functions must pass both the execution role (used by the ECS
+        # agent to pull the image) and the task role (used by the container
+        # code to call S3 / Bedrock / Step Functions).
+        Sid    = "PassRoleToECS"
+        Effect = "Allow"
+        Action = ["iam:PassRole"]
+        Resource = [
+          var.ecs_task_execution_role_arn,
+          var.ecs_task_role_arn,
+        ]
+      },
+      {
         Sid    = "CloudWatchLogs"
         Effect = "Allow"
         Action = [
@@ -81,9 +102,17 @@ resource "aws_sfn_state_machine" "video_processing" {
   type     = "STANDARD"
 
   definition = jsonencode({
-    Comment = "LectureClip video processing: start Transcribe job, wait for completion, then generate embeddings"
+    Comment = "LectureClip video processing: transcribe → extract segment frames → generate embeddings"
     StartAt = "StartTranscribe"
     States = {
+      # -----------------------------------------------------------------------
+      # 1. StartTranscribe
+      # Invokes start-transcribe Lambda and waits for the task token callback.
+      # process-transcribe (triggered by EventBridge on Transcribe completion)
+      # sends SendTaskSuccess with { status, transcriptUrl, mediaUrl }.
+      # ResultPath merges that output into $.transcribeResult so the original
+      # $.s3_uri remains available for the next state.
+      # -----------------------------------------------------------------------
       StartTranscribe = {
         Type     = "Task"
         Resource = "arn:aws:states:::lambda:invoke.waitForTaskToken"
@@ -103,18 +132,72 @@ resource "aws_sfn_state_machine" "video_processing" {
             BackoffRate     = 2
           }
         ]
-        Next = "ProcessResults"
+        ResultPath = "$.transcribeResult"
+        Next       = "ExtractFrames"
       }
+
+      # -----------------------------------------------------------------------
+      # 2. ExtractFrames
+      # Runs the segment-frame-extractor ECS Fargate task and waits for its
+      # task token callback.  The container receives S3_URI and TASK_TOKEN via
+      # container environment overrides.  On success it calls SendTaskSuccess
+      # with { bucket, videoKey, frameEmbeddingsKey } and those values are
+      # merged into $.frameResult.
+      # -----------------------------------------------------------------------
+      ExtractFrames = {
+        Type     = "Task"
+        Resource = "arn:aws:states:::ecs:runTask.waitForTaskToken"
+        Parameters = {
+          LaunchType     = "FARGATE"
+          Cluster        = var.ecs_cluster_arn
+          TaskDefinition = var.ecs_task_definition_arn
+          NetworkConfiguration = {
+            AwsvpcConfiguration = {
+              Subnets        = var.ecs_subnet_ids
+              SecurityGroups = [var.ecs_security_group_id]
+              AssignPublicIp = "DISABLED"
+            }
+          }
+          Overrides = {
+            ContainerOverrides = [
+              {
+                Name = "segment-frame-extractor"
+                Environment = [
+                  { "Name" = "TASK_TOKEN", "Value.$" = "$$.Task.Token" },
+                  { "Name" = "S3_URI", "Value.$" = "$.transcribeResult.mediaUrl" }
+                ]
+              }
+            ]
+          }
+        }
+        # Allow up to 4 hours for long lectures
+        TimeoutSeconds = 14400
+        ResultPath     = "$.frameResult"
+        Next           = "ProcessResults"
+      }
+
+      # -----------------------------------------------------------------------
+      # 3. ProcessResults
+      # Invokes process-results Lambda with a flat payload built from both
+      # upstream outputs.  The Lambda generates text embeddings from the
+      # transcript and inserts pre-computed frame embeddings from S3.
+      # -----------------------------------------------------------------------
       ProcessResults = {
         Type     = "Task"
         Resource = "arn:aws:states:::lambda:invoke"
         Parameters = {
           FunctionName = var.process_results_lambda_arn
-          "Payload.$"  = "$"
+          Payload = {
+            "transcriptUrl.$"      = "$.transcribeResult.transcriptUrl"
+            "mediaUrl.$"           = "$.transcribeResult.mediaUrl"
+            "bucket.$"             = "$.frameResult.bucket"
+            "frameEmbeddingsKey.$" = "$.frameResult.frameEmbeddingsKey"
+          }
         }
         ResultSelector = {
-          "segmentCount.$"   = "$.Payload.segmentCount"
-          "embeddingCount.$" = "$.Payload.embeddingCount"
+          "segmentCount.$"        = "$.Payload.segmentCount"
+          "embeddingCount.$"      = "$.Payload.embeddingCount"
+          "frameEmbeddingCount.$" = "$.Payload.frameEmbeddingCount"
         }
         Retry = [
           {
