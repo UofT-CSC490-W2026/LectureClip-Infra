@@ -15,3 +15,4 @@ create_oidc_provider = true
 embedding_model_id   = "amazon.titan-embed-image-v1"
 embedding_dim        = 1024
 modal_embedding_url  = ""
+chat_model_id        = "global.anthropic.claude-haiku-4-5-20251001-v1:0"

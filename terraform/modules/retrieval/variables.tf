@@ -67,3 +67,9 @@ variable "modal_embedding_url" {
   type        = string
   default     = ""
 }
+
+variable "chat_model_id" {
+  description = "Bedrock model ID for the chat lambda (Claude via Converse API)"
+  type        = string
+  default     = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+}

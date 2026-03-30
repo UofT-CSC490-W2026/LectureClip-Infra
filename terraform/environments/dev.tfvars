@@ -16,6 +16,7 @@ create_oidc_provider = false
 embedding_model_id  = "amazon.titan-embed-image-v1"
 embedding_dim       = 1024
 modal_embedding_url = ""
+chat_model_id       = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 // uncomment this block and comment the previous block to use titan
 # embedding_model_id  = "modal-jina-clip-v2"

@@ -262,6 +262,7 @@ module "retrieval" {
   embedding_model_id        = var.embedding_model_id
   embedding_dim             = var.embedding_dim
   modal_embedding_url       = var.modal_embedding_url
+  chat_model_id             = var.chat_model_id
   rest_api_id               = module.api_gateway.api_id
   rest_api_execution_arn    = module.api_gateway.api_execution_arn
   rest_api_root_resource_id = module.api_gateway.root_resource_id
@@ -294,6 +295,8 @@ resource "aws_api_gateway_deployment" "main" {
       module.retrieval.query_options_integration_id,
       module.retrieval.query_info_post_integration_id,
       module.retrieval.query_info_options_integration_id,
+      module.retrieval.chat_post_integration_id,
+      module.retrieval.chat_options_integration_id,
     ]))
   }
 

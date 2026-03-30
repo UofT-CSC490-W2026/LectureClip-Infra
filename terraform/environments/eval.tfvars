@@ -21,3 +21,4 @@ create_oidc_provider = false
 embedding_model_id  = "modal-jina-clip-v2"
 embedding_dim       = 1024
 modal_embedding_url = "https://kuakimnguu--lectureclip-embeddings-embedder-embed.modal.run"
+chat_model_id       = "global.anthropic.claude-haiku-4-5-20251001-v1:0"

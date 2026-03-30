@@ -431,3 +431,230 @@ resource "aws_lambda_permission" "query_info_apigw" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${var.rest_api_execution_arn}/*/*"
 }
+
+# ============================================================================
+# DYNAMODB TABLE — chat sessions
+# Stores Converse API message history keyed by session_id, with a 24-hour TTL.
+# ============================================================================
+
+resource "aws_dynamodb_table" "chat_sessions" {
+  name         = "${local.name_prefix}-chat-sessions"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "session_id"
+
+  attribute {
+    name = "session_id"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
+  tags = {
+    Name        = "${local.name_prefix}-chat-sessions"
+    Environment = var.environment
+  }
+}
+
+# ============================================================================
+# IAM ROLE — chat
+# Embedding InvokeModel + LLM Converse + RDS Data API + DynamoDB sessions
+# ============================================================================
+
+resource "aws_iam_role" "chat" {
+  name = "${local.name_prefix}-chat-lambda"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = { Service = "lambda.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name        = "${local.name_prefix}-chat-lambda"
+    Environment = var.environment
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "chat_basic" {
+  role       = aws_iam_role.chat.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "chat" {
+  name = "${local.name_prefix}-chat-lambda"
+  role = aws_iam_role.chat.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "BedrockInvoke"
+        Effect   = "Allow"
+        Action   = ["bedrock:InvokeModel", "bedrock:Converse"]
+        Resource = "*"
+      },
+      {
+        Sid      = "RDSDataAPI"
+        Effect   = "Allow"
+        Action   = ["rds-data:ExecuteStatement"]
+        Resource = var.aurora_cluster_arn
+      },
+      {
+        Sid      = "AuroraSecretAccess"
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = var.aurora_secret_arn
+      },
+      {
+        Sid      = "KMSDecryptSecret"
+        Effect   = "Allow"
+        Action   = ["kms:Decrypt", "kms:DescribeKey"]
+        Resource = var.kms_key_arn
+      },
+      {
+        Sid      = "DynamoDBSessions"
+        Effect   = "Allow"
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem"]
+        Resource = aws_dynamodb_table.chat_sessions.arn
+      }
+    ]
+  })
+}
+
+# ============================================================================
+# LAMBDA FUNCTION — chat
+# ============================================================================
+
+resource "aws_lambda_function" "chat" {
+  function_name    = "${local.name_prefix}-chat"
+  role             = aws_iam_role.chat.arn
+  handler          = "index.lambda_handler"
+  runtime          = "python3.13"
+  timeout          = 60
+  filename         = data.archive_file.placeholder.output_path
+  source_code_hash = data.archive_file.placeholder.output_base64sha256
+
+  environment {
+    variables = {
+      EMBEDDING_MODEL_ID  = var.embedding_model_id
+      EMBEDDING_DIM       = tostring(var.embedding_dim)
+      MODAL_EMBEDDING_URL = var.modal_embedding_url
+      CHAT_MODEL_ID       = var.chat_model_id
+      CHAT_SESSIONS_TABLE = aws_dynamodb_table.chat_sessions.name
+      AURORA_CLUSTER_ARN  = var.aurora_cluster_arn
+      AURORA_SECRET_ARN   = var.aurora_secret_arn
+      AURORA_DB_NAME      = var.aurora_db_name
+      BUCKET_NAME         = var.bucket_name
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [source_code_hash]
+  }
+
+  tags = {
+    Name        = "${local.name_prefix}-chat"
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_log_group" "chat" {
+  name              = "/aws/lambda/${aws_lambda_function.chat.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# ============================================================================
+# API GATEWAY — POST /chat
+# ============================================================================
+
+resource "aws_api_gateway_resource" "chat" {
+  rest_api_id = var.rest_api_id
+  parent_id   = var.rest_api_root_resource_id
+  path_part   = "chat"
+}
+
+resource "aws_api_gateway_method" "chat_post" {
+  rest_api_id   = var.rest_api_id
+  resource_id   = aws_api_gateway_resource.chat.id
+  http_method   = "POST"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "chat_post" {
+  rest_api_id             = var.rest_api_id
+  resource_id             = aws_api_gateway_resource.chat.id
+  http_method             = aws_api_gateway_method.chat_post.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.chat.invoke_arn
+}
+
+resource "aws_api_gateway_method" "chat_options" {
+  rest_api_id   = var.rest_api_id
+  resource_id   = aws_api_gateway_resource.chat.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "chat_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.chat.id
+  http_method = aws_api_gateway_method.chat_options.http_method
+  type        = "MOCK"
+
+  request_templates = {
+    "application/json" = "{\"statusCode\": 200}"
+  }
+}
+
+resource "aws_api_gateway_method_response" "chat_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.chat.id
+  http_method = aws_api_gateway_method.chat_options.http_method
+  status_code = "200"
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+
+  response_models = {
+    "application/json" = "Empty"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "chat_options" {
+  rest_api_id = var.rest_api_id
+  resource_id = aws_api_gateway_resource.chat.id
+  http_method = aws_api_gateway_method.chat_options.http_method
+  status_code = aws_api_gateway_method_response.chat_options.status_code
+
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+
+  depends_on = [aws_api_gateway_integration.chat_options]
+}
+
+resource "aws_lambda_permission" "chat_apigw" {
+  statement_id  = "AllowAPIGatewayInvokeChat"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.chat.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${var.rest_api_execution_arn}/*/*"
+}

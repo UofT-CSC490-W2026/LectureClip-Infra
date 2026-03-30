@@ -49,3 +49,13 @@ output "query_info_options_integration_id" {
   description = "Integration ID for OPTIONS /query-info — consumed by the root module's deployment trigger"
   value       = aws_api_gateway_integration.query_info_options.id
 }
+
+output "chat_post_integration_id" {
+  description = "Integration ID for POST /chat — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.chat_post.id
+}
+
+output "chat_options_integration_id" {
+  description = "Integration ID for OPTIONS /chat — consumed by the root module's deployment trigger"
+  value       = aws_api_gateway_integration.chat_options.id
+}
