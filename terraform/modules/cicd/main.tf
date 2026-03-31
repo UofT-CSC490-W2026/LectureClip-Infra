@@ -362,7 +362,8 @@ resource "aws_iam_role_policy" "github_actions_terraform" {
           "lambda:ListVersionsByFunction",
           "lambda:RemovePermission",
           "lambda:TagResource",
-          "lambda:UntagResource"
+          "lambda:UntagResource",
+          "lambda:UpdateFunctionConfiguration"
         ]
         Resource = ["*"]
       },
